@@ -73,6 +73,15 @@ export async function initializeDatabase() {
     try {
       await connection.query(`ALTER TABLE hotels ADD COLUMN sort_order INT DEFAULT 0`);
     } catch (e) {}
+    try {
+      await connection.query(`ALTER TABLE hotels ADD COLUMN gallery JSON`);
+    } catch (e) {}
+    try {
+      await connection.query(`ALTER TABLE hotels ADD COLUMN meta_description TEXT`);
+    } catch (e) {}
+    try {
+      await connection.query(`ALTER TABLE hotels ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
+    } catch (e) {}
 
     await connection.query(`
       CREATE TABLE IF NOT EXISTS room_types (
