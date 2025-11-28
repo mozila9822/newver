@@ -440,12 +440,25 @@ class MySQLStorage implements IStorage {
 
   async getTickets(): Promise<any[]> {
     const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM support_tickets ORDER BY created_at DESC");
-    return rows.map((row) => ({
-      ...row,
-      userName: row.user_name,
-      userEmail: row.user_email,
-      createdAt: row.created_at,
-    }));
+    const tickets = [];
+    for (const row of rows) {
+      const [replies] = await pool.query<RowDataPacket[]>(
+        "SELECT * FROM ticket_replies WHERE ticket_id = ? ORDER BY created_at ASC",
+        [row.id]
+      );
+      tickets.push({
+        ...row,
+        userName: row.user_name,
+        userEmail: row.user_email,
+        createdAt: row.created_at,
+        replies: replies.map((r) => ({
+          ...r,
+          ticketId: r.ticket_id,
+          createdAt: r.created_at,
+        })),
+      });
+    }
+    return tickets;
   }
 
   async getTicketsByUser(userEmail: string): Promise<any[]> {
@@ -453,12 +466,25 @@ class MySQLStorage implements IStorage {
       "SELECT * FROM support_tickets WHERE user_email = ? ORDER BY created_at DESC",
       [userEmail]
     );
-    return rows.map((row) => ({
-      ...row,
-      userName: row.user_name,
-      userEmail: row.user_email,
-      createdAt: row.created_at,
-    }));
+    const tickets = [];
+    for (const row of rows) {
+      const [replies] = await pool.query<RowDataPacket[]>(
+        "SELECT * FROM ticket_replies WHERE ticket_id = ? ORDER BY created_at ASC",
+        [row.id]
+      );
+      tickets.push({
+        ...row,
+        userName: row.user_name,
+        userEmail: row.user_email,
+        createdAt: row.created_at,
+        replies: replies.map((r) => ({
+          ...r,
+          ticketId: r.ticket_id,
+          createdAt: r.created_at,
+        })),
+      });
+    }
+    return tickets;
   }
 
   async getTicketById(id: string): Promise<any | null> {
