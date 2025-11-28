@@ -466,7 +466,7 @@ export default function AdminDashboard() {
   const [editingTripId, setEditingTripId] = useState<string | null>(null);
   const [isCarDialogOpen, setIsCarDialogOpen] = useState(false);
   const [editingCarId, setEditingCarId] = useState<string | null>(null);
-  const [newTrip, setNewTrip] = useState({ title: "", price: "", location: "", image: "", gallery: [] as string[], rating: 5.0, duration: "", category: "", features: [] as string[] });
+  const [newTrip, setNewTrip] = useState({ title: "", price: "", location: "", image: "", gallery: [] as string[], rating: 5.0, duration: "", category: "", features: [] as string[], metaDescription: "" });
   const [tripImageFile, setTripImageFile] = useState<File | null>(null);
   const [newHotel, setNewHotel] = useState({ 
     title: "", 
@@ -479,16 +479,17 @@ export default function AdminDashboard() {
     isActive: true,
     availableFrom: undefined as Date | undefined,
     availableTo: undefined as Date | undefined,
-    roomTypes: [] as { id: string; name: string; price: string; description?: string; facilities: string[] }[]
+    roomTypes: [] as { id: string; name: string; price: string; description?: string; facilities: string[] }[],
+    metaDescription: ""
   });
   const [hotelImageFile, setHotelImageFile] = useState<File | null>(null);
   const [newRoomType, setNewRoomType] = useState({ name: "", price: "", facilities: [] as string[] });
   const [newFacility, setNewFacility] = useState("");
-  const [newCar, setNewCar] = useState({ title: "", price: "", location: "", image: "", gallery: [] as string[], rating: 5.0, specs: "", features: [] as string[] });
+  const [newCar, setNewCar] = useState({ title: "", price: "", location: "", image: "", gallery: [] as string[], rating: 5.0, specs: "", features: [] as string[], metaDescription: "" });
   const [carImageFile, setCarImageFile] = useState<File | null>(null);
   const [isOfferDialogOpen, setIsOfferDialogOpen] = useState(false);
   const [editingOfferId, setEditingOfferId] = useState<string | null>(null);
-  const [newOffer, setNewOffer] = useState({ title: "", price: "", originalPrice: "", location: "", image: "", gallery: [] as string[], rating: 5.0, endsIn: "", discount: "" });
+  const [newOffer, setNewOffer] = useState({ title: "", price: "", originalPrice: "", location: "", image: "", gallery: [] as string[], rating: 5.0, endsIn: "", discount: "", metaDescription: "" });
   const [offerImageFile, setOfferImageFile] = useState<File | null>(null);
 
   const availableTripFeatures = ["All Inclusive", "Flights Included", "Transfers", "Guided Tours", "Meals", "Insurance", "Luxury Car Rental", "5-Star Hotels"];
@@ -517,7 +518,8 @@ export default function AdminDashboard() {
       rating: trip.rating || 5.0,
       duration: trip.duration || "",
       category: trip.category || "",
-      features: trip.features || []
+      features: trip.features || [],
+      metaDescription: trip.metaDescription || trip.meta_description || ""
     });
     setTripImageFile(null);
     setIsTripDialogOpen(true);
@@ -533,7 +535,8 @@ export default function AdminDashboard() {
       gallery: car.gallery || [],
       rating: car.rating || 5.0,
       specs: car.specs || "",
-      features: car.features || []
+      features: car.features || [],
+      metaDescription: car.metaDescription || car.meta_description || ""
     });
     setCarImageFile(null);
     setIsCarDialogOpen(true);
@@ -550,7 +553,8 @@ export default function AdminDashboard() {
       gallery: offer.gallery || [],
       rating: offer.rating || 5.0,
       endsIn: offer.endsIn || "",
-      discount: offer.discount || ""
+      discount: offer.discount || "",
+      metaDescription: offer.metaDescription || offer.meta_description || ""
     });
     setOfferImageFile(null);
     setIsOfferDialogOpen(true);
@@ -568,7 +572,8 @@ export default function AdminDashboard() {
       isActive: hotel.isActive ?? true,
       availableFrom: hotel.availableFrom ? new Date(hotel.availableFrom) : undefined,
       availableTo: hotel.availableTo ? new Date(hotel.availableTo) : undefined,
-      roomTypes: hotel.roomTypes || []
+      roomTypes: hotel.roomTypes || [],
+      metaDescription: hotel.metaDescription || hotel.meta_description || ""
     });
     setHotelImageFile(null);
     setEditingHotelId(hotel.id);
@@ -587,7 +592,8 @@ export default function AdminDashboard() {
       isActive: true,
       availableFrom: undefined,
       availableTo: undefined,
-      roomTypes: []
+      roomTypes: [],
+      metaDescription: ""
     });
     setHotelImageFile(null);
     setEditingHotelId(null);
@@ -948,14 +954,14 @@ export default function AdminDashboard() {
                     setIsTripDialogOpen(open);
                     if (!open) {
                       setEditingTripId(null);
-                      setNewTrip({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, duration: "", category: "", features: [] });
+                      setNewTrip({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, duration: "", category: "", features: [], metaDescription: "" });
                       setTripImageFile(null);
                     }
                   }}>
                      <DialogTrigger asChild>
                         <Button className="bg-primary text-white" onClick={() => {
                           setEditingTripId(null);
-                          setNewTrip({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, duration: "", category: "", features: [] });
+                          setNewTrip({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, duration: "", category: "", features: [], metaDescription: "" });
                           setTripImageFile(null);
                         }}><Plus className="w-4 h-4 mr-2" /> Add Trip</Button>
                      </DialogTrigger>
@@ -1051,6 +1057,16 @@ export default function AdminDashboard() {
                                  ))}
                               </div>
                            </div>
+                           <div className="grid gap-2">
+                              <Label>SEO Meta Description</Label>
+                              <textarea
+                                 className="w-full min-h-[80px] px-3 py-2 text-sm border rounded-md resize-none"
+                                 placeholder="Brief description for search engines (recommended 150-160 characters)"
+                                 value={newTrip.metaDescription}
+                                 onChange={(e) => setNewTrip({...newTrip, metaDescription: e.target.value})}
+                              />
+                              <p className="text-xs text-muted-foreground">{newTrip.metaDescription.length}/160 characters</p>
+                           </div>
                            <GalleryEditor
                               images={newTrip.gallery}
                               onChange={(gallery) => setNewTrip({...newTrip, gallery})}
@@ -1069,13 +1085,14 @@ export default function AdminDashboard() {
                                     rating: newTrip.rating,
                                     duration: newTrip.duration,
                                     category: newTrip.category,
-                                    features: newTrip.features
+                                    features: newTrip.features,
+                                    metaDescription: newTrip.metaDescription
                                  });
                                  if (success) {
                                     toast({ title: "Trip Updated", description: "The trip has been updated in the database." });
                                     setIsTripDialogOpen(false);
                                     setEditingTripId(null);
-                                    setNewTrip({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, duration: "", category: "", features: [] });
+                                    setNewTrip({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, duration: "", category: "", features: [], metaDescription: "" });
                                  } else {
                                     toast({ title: "Error", description: "Failed to update trip.", variant: "destructive" });
                                  }
@@ -1090,12 +1107,13 @@ export default function AdminDashboard() {
                                     rating: newTrip.rating || 5.0,
                                     duration: newTrip.duration || "7 Days",
                                     category: newTrip.category || "New",
-                                    features: newTrip.features
+                                    features: newTrip.features,
+                                    metaDescription: newTrip.metaDescription
                                  });
                                  if (result) {
                                     toast({ title: "Trip Added", description: "The new trip has been saved to database." });
                                     setIsTripDialogOpen(false);
-                                    setNewTrip({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, duration: "", category: "", features: [] });
+                                    setNewTrip({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, duration: "", category: "", features: [], metaDescription: "" });
                                  } else {
                                     toast({ title: "Error", description: "Failed to save trip.", variant: "destructive" });
                                  }
@@ -1465,6 +1483,16 @@ export default function AdminDashboard() {
                                  ))}
                               </div>
                            </div>
+                           <div className="grid gap-2">
+                              <Label>SEO Meta Description</Label>
+                              <textarea
+                                 className="w-full min-h-[80px] px-3 py-2 text-sm border rounded-md resize-none"
+                                 placeholder="Brief description for search engines (recommended 150-160 characters)"
+                                 value={newHotel.metaDescription}
+                                 onChange={(e) => setNewHotel({...newHotel, metaDescription: e.target.value})}
+                              />
+                              <p className="text-xs text-muted-foreground">{newHotel.metaDescription.length}/160 characters</p>
+                           </div>
                            <GalleryEditor
                               images={newHotel.gallery}
                               onChange={(gallery) => setNewHotel({...newHotel, gallery})}
@@ -1484,7 +1512,8 @@ export default function AdminDashboard() {
                                  isActive: newHotel.isActive,
                                  availableFrom: newHotel.availableFrom ? newHotel.availableFrom.toISOString().split('T')[0] : undefined,
                                  availableTo: newHotel.availableTo ? newHotel.availableTo.toISOString().split('T')[0] : undefined,
-                                 roomTypes: newHotel.roomTypes
+                                 roomTypes: newHotel.roomTypes,
+                                 metaDescription: newHotel.metaDescription
                               };
                               
                               if (editingHotelId) {
@@ -1509,7 +1538,7 @@ export default function AdminDashboard() {
                                  }
                               }
                               setIsHotelDialogOpen(false);
-                              setNewHotel({ title: "", price: "", location: "", image: "", gallery: [], amenities: [], alwaysAvailable: true, isActive: true, availableFrom: undefined, availableTo: undefined, roomTypes: [] });
+                              setNewHotel({ title: "", price: "", location: "", image: "", gallery: [], amenities: [], alwaysAvailable: true, isActive: true, availableFrom: undefined, availableTo: undefined, roomTypes: [], metaDescription: "" });
                            }}>{editingHotelId ? "Save Changes" : "Save Hotel"}</Button>
                         </DialogFooter>
                      </DialogContent>
@@ -1567,14 +1596,14 @@ export default function AdminDashboard() {
                     setIsCarDialogOpen(open);
                     if (!open) {
                       setEditingCarId(null);
-                      setNewCar({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, specs: "", features: [] });
+                      setNewCar({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, specs: "", features: [], metaDescription: "" });
                       setCarImageFile(null);
                     }
                   }}>
                      <DialogTrigger asChild>
                         <Button className="bg-primary text-white" onClick={() => {
                           setEditingCarId(null);
-                          setNewCar({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, specs: "", features: [] });
+                          setNewCar({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, specs: "", features: [], metaDescription: "" });
                           setCarImageFile(null);
                         }}><Plus className="w-4 h-4 mr-2" /> Add Car</Button>
                      </DialogTrigger>
@@ -1699,6 +1728,16 @@ export default function AdminDashboard() {
                                  ))}
                               </div>
                            </div>
+                           <div className="grid gap-2">
+                              <Label>SEO Meta Description</Label>
+                              <textarea
+                                 className="w-full min-h-[80px] px-3 py-2 text-sm border rounded-md resize-none"
+                                 placeholder="Brief description for search engines (recommended 150-160 characters)"
+                                 value={newCar.metaDescription}
+                                 onChange={(e) => setNewCar({...newCar, metaDescription: e.target.value})}
+                              />
+                              <p className="text-xs text-muted-foreground">{newCar.metaDescription.length}/160 characters</p>
+                           </div>
                            <GalleryEditor
                               images={newCar.gallery}
                               onChange={(gallery) => setNewCar({...newCar, gallery})}
@@ -1716,13 +1755,14 @@ export default function AdminDashboard() {
                                     gallery: newCar.gallery,
                                     rating: newCar.rating,
                                     specs: newCar.specs,
-                                    features: newCar.features
+                                    features: newCar.features,
+                                    metaDescription: newCar.metaDescription
                                  });
                                  if (success) {
                                     toast({ title: "Vehicle Updated", description: "The vehicle has been updated in the database." });
                                     setIsCarDialogOpen(false);
                                     setEditingCarId(null);
-                                    setNewCar({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, specs: "", features: [] });
+                                    setNewCar({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, specs: "", features: [], metaDescription: "" });
                                  } else {
                                     toast({ title: "Error", description: "Failed to update vehicle.", variant: "destructive" });
                                  }
@@ -1736,12 +1776,13 @@ export default function AdminDashboard() {
                                     gallery: newCar.gallery,
                                     rating: newCar.rating || 5.0,
                                     specs: newCar.specs || "Standard",
-                                    features: newCar.features
+                                    features: newCar.features,
+                                    metaDescription: newCar.metaDescription
                                  });
                                  if (result) {
                                     toast({ title: "Vehicle Added", description: "Vehicle saved to database." });
                                     setIsCarDialogOpen(false);
-                                    setNewCar({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, specs: "", features: [] });
+                                    setNewCar({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, specs: "", features: [], metaDescription: "" });
                                  } else {
                                     toast({ title: "Error", description: "Failed to save vehicle.", variant: "destructive" });
                                  }
@@ -1806,14 +1847,14 @@ export default function AdminDashboard() {
                     setIsOfferDialogOpen(open);
                     if (!open) {
                       setEditingOfferId(null);
-                      setNewOffer({ title: "", price: "", originalPrice: "", location: "", image: "", gallery: [], rating: 5.0, endsIn: "", discount: "" });
+                      setNewOffer({ title: "", price: "", originalPrice: "", location: "", image: "", gallery: [], rating: 5.0, endsIn: "", discount: "", metaDescription: "" });
                       setOfferImageFile(null);
                     }
                   }}>
                      <DialogTrigger asChild>
                         <Button className="bg-primary text-white" onClick={() => {
                           setEditingOfferId(null);
-                          setNewOffer({ title: "", price: "", originalPrice: "", location: "", image: "", gallery: [], rating: 5.0, endsIn: "", discount: "" });
+                          setNewOffer({ title: "", price: "", originalPrice: "", location: "", image: "", gallery: [], rating: 5.0, endsIn: "", discount: "", metaDescription: "" });
                           setOfferImageFile(null);
                         }}><Plus className="w-4 h-4 mr-2" /> Add Offer</Button>
                      </DialogTrigger>
@@ -1935,6 +1976,16 @@ export default function AdminDashboard() {
                                  )}
                               </div>
                            </div>
+                           <div className="grid gap-2">
+                              <Label>SEO Meta Description</Label>
+                              <textarea
+                                 className="w-full min-h-[80px] px-3 py-2 text-sm border rounded-md resize-none"
+                                 placeholder="Brief description for search engines (recommended 150-160 characters)"
+                                 value={newOffer.metaDescription}
+                                 onChange={(e) => setNewOffer({...newOffer, metaDescription: e.target.value})}
+                              />
+                              <p className="text-xs text-muted-foreground">{newOffer.metaDescription.length}/160 characters</p>
+                           </div>
                            <GalleryEditor
                               images={newOffer.gallery}
                               onChange={(gallery) => setNewOffer({...newOffer, gallery})}
@@ -1953,7 +2004,8 @@ export default function AdminDashboard() {
                                     gallery: newOffer.gallery,
                                     rating: newOffer.rating,
                                     endsIn: newOffer.endsIn,
-                                    discount: newOffer.discount
+                                    discount: newOffer.discount,
+                                    metaDescription: newOffer.metaDescription
                                  });
                                  if (success) {
                                     toast({ title: "Offer Updated", description: "The offer has been updated in the database." });
@@ -1972,7 +2024,8 @@ export default function AdminDashboard() {
                                     gallery: newOffer.gallery,
                                     rating: newOffer.rating || 5.0,
                                     endsIn: newOffer.endsIn || "Limited Time",
-                                    discount: newOffer.discount || "0% OFF"
+                                    discount: newOffer.discount || "0% OFF",
+                                    metaDescription: newOffer.metaDescription
                                  });
                                  if (result) {
                                     toast({ title: "Offer Added", description: "Offer saved to database." });

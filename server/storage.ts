@@ -95,6 +95,8 @@ class MySQLStorage implements IStorage {
     return rows.map((row) => ({
       ...row,
       features: typeof row.features === "string" ? JSON.parse(row.features) : row.features,
+      gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
+      metaDescription: row.meta_description || "",
     }));
   }
 
@@ -105,6 +107,8 @@ class MySQLStorage implements IStorage {
     return {
       ...row,
       features: typeof row.features === "string" ? JSON.parse(row.features) : row.features,
+      gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
+      metaDescription: row.meta_description || "",
     };
   }
 
@@ -115,6 +119,8 @@ class MySQLStorage implements IStorage {
         return {
           ...row,
           features: typeof row.features === "string" ? JSON.parse(row.features) : row.features,
+          gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
+          metaDescription: row.meta_description || "",
         };
       }
     }
@@ -124,8 +130,8 @@ class MySQLStorage implements IStorage {
   async createTrip(trip: any): Promise<any> {
     const id = this.generateId();
     await pool.query(
-      "INSERT INTO trips (id, title, location, image, price, rating, duration, category, features) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [id, trip.title, trip.location, trip.image, trip.price, trip.rating, trip.duration, trip.category, JSON.stringify(trip.features || [])]
+      "INSERT INTO trips (id, title, location, image, price, rating, duration, category, features, gallery, meta_description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [id, trip.title, trip.location, trip.image, trip.price, trip.rating, trip.duration, trip.category, JSON.stringify(trip.features || []), JSON.stringify(trip.gallery || []), trip.metaDescription || ""]
     );
     return { id, ...trip };
   }
@@ -134,8 +140,8 @@ class MySQLStorage implements IStorage {
     const existing = await this.getTripById(id);
     if (!existing) return null;
     await pool.query(
-      "UPDATE trips SET title = ?, location = ?, image = ?, price = ?, rating = ?, duration = ?, category = ?, features = ? WHERE id = ?",
-      [trip.title, trip.location, trip.image, trip.price, trip.rating, trip.duration, trip.category, JSON.stringify(trip.features || []), id]
+      "UPDATE trips SET title = ?, location = ?, image = ?, price = ?, rating = ?, duration = ?, category = ?, features = ?, gallery = ?, meta_description = ? WHERE id = ?",
+      [trip.title, trip.location, trip.image, trip.price, trip.rating, trip.duration, trip.category, JSON.stringify(trip.features || []), JSON.stringify(trip.gallery || []), trip.metaDescription || "", id]
     );
     return { id, ...trip };
   }
@@ -147,13 +153,15 @@ class MySQLStorage implements IStorage {
 
   async getHotels(): Promise<any[]> {
     const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM hotels");
-    const hotels = rows.map((row) => ({
+    const hotels: any[] = rows.map((row) => ({
       ...row,
       amenities: typeof row.amenities === "string" ? JSON.parse(row.amenities) : row.amenities,
+      gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
       alwaysAvailable: row.always_available,
       isActive: row.is_active,
       availableFrom: row.available_from,
       availableTo: row.available_to,
+      metaDescription: row.meta_description || "",
     }));
 
     for (const hotel of hotels) {
@@ -167,13 +175,15 @@ class MySQLStorage implements IStorage {
     const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM hotels WHERE id = ?", [id]);
     if (rows.length === 0) return null;
     const row = rows[0];
-    const hotel = {
+    const hotel: any = {
       ...row,
       amenities: typeof row.amenities === "string" ? JSON.parse(row.amenities) : row.amenities,
+      gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
       alwaysAvailable: row.always_available,
       isActive: row.is_active,
       availableFrom: row.available_from,
       availableTo: row.available_to,
+      metaDescription: row.meta_description || "",
     };
     hotel.roomTypes = await this.getRoomTypes(id);
     return hotel;
@@ -183,13 +193,15 @@ class MySQLStorage implements IStorage {
     const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM hotels", []);
     for (const row of rows) {
       if (generateSlug(row.title) === slug) {
-        const hotel = {
+        const hotel: any = {
           ...row,
           amenities: typeof row.amenities === "string" ? JSON.parse(row.amenities) : row.amenities,
+          gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
           alwaysAvailable: row.always_available,
           isActive: row.is_active,
           availableFrom: row.available_from,
           availableTo: row.available_to,
+          metaDescription: row.meta_description || "",
         };
         hotel.roomTypes = await this.getRoomTypes(row.id);
         return hotel;
@@ -201,8 +213,8 @@ class MySQLStorage implements IStorage {
   async createHotel(hotel: any): Promise<any> {
     const id = this.generateId();
     await pool.query(
-      "INSERT INTO hotels (id, title, location, image, price, rating, amenities, always_available, is_active, available_from, available_to) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [id, hotel.title, hotel.location, hotel.image, hotel.price, hotel.rating, JSON.stringify(hotel.amenities || []), hotel.alwaysAvailable ?? true, hotel.isActive ?? true, hotel.availableFrom, hotel.availableTo]
+      "INSERT INTO hotels (id, title, location, image, price, rating, amenities, always_available, is_active, available_from, available_to, gallery, meta_description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [id, hotel.title, hotel.location, hotel.image, hotel.price, hotel.rating, JSON.stringify(hotel.amenities || []), hotel.alwaysAvailable ?? true, hotel.isActive ?? true, hotel.availableFrom, hotel.availableTo, JSON.stringify(hotel.gallery || []), hotel.metaDescription || ""]
     );
     return { id, ...hotel, roomTypes: [] };
   }
@@ -211,8 +223,8 @@ class MySQLStorage implements IStorage {
     const existing = await this.getHotelById(id);
     if (!existing) return null;
     await pool.query(
-      "UPDATE hotels SET title = ?, location = ?, image = ?, price = ?, rating = ?, amenities = ?, always_available = ?, is_active = ?, available_from = ?, available_to = ? WHERE id = ?",
-      [hotel.title, hotel.location, hotel.image, hotel.price, hotel.rating, JSON.stringify(hotel.amenities || []), hotel.alwaysAvailable ?? true, hotel.isActive ?? true, hotel.availableFrom, hotel.availableTo, id]
+      "UPDATE hotels SET title = ?, location = ?, image = ?, price = ?, rating = ?, amenities = ?, always_available = ?, is_active = ?, available_from = ?, available_to = ?, gallery = ?, meta_description = ? WHERE id = ?",
+      [hotel.title, hotel.location, hotel.image, hotel.price, hotel.rating, JSON.stringify(hotel.amenities || []), hotel.alwaysAvailable ?? true, hotel.isActive ?? true, hotel.availableFrom, hotel.availableTo, JSON.stringify(hotel.gallery || []), hotel.metaDescription || "", id]
     );
     return { id, ...hotel };
   }
@@ -258,6 +270,8 @@ class MySQLStorage implements IStorage {
     return rows.map((row) => ({
       ...row,
       features: typeof row.features === "string" ? JSON.parse(row.features) : row.features,
+      gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
+      metaDescription: row.meta_description || "",
     }));
   }
 
@@ -268,6 +282,8 @@ class MySQLStorage implements IStorage {
     return {
       ...row,
       features: typeof row.features === "string" ? JSON.parse(row.features) : row.features,
+      gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
+      metaDescription: row.meta_description || "",
     };
   }
 
@@ -278,6 +294,8 @@ class MySQLStorage implements IStorage {
         return {
           ...row,
           features: typeof row.features === "string" ? JSON.parse(row.features) : row.features,
+          gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
+          metaDescription: row.meta_description || "",
         };
       }
     }
@@ -287,8 +305,8 @@ class MySQLStorage implements IStorage {
   async createCar(car: any): Promise<any> {
     const id = this.generateId();
     await pool.query(
-      "INSERT INTO cars (id, title, location, image, price, rating, specs, features) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-      [id, car.title, car.location, car.image, car.price, car.rating, car.specs, JSON.stringify(car.features || [])]
+      "INSERT INTO cars (id, title, location, image, price, rating, specs, features, gallery, meta_description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [id, car.title, car.location, car.image, car.price, car.rating, car.specs, JSON.stringify(car.features || []), JSON.stringify(car.gallery || []), car.metaDescription || ""]
     );
     return { id, ...car };
   }
@@ -297,8 +315,8 @@ class MySQLStorage implements IStorage {
     const existing = await this.getCarById(id);
     if (!existing) return null;
     await pool.query(
-      "UPDATE cars SET title = ?, location = ?, image = ?, price = ?, rating = ?, specs = ?, features = ? WHERE id = ?",
-      [car.title, car.location, car.image, car.price, car.rating, car.specs, JSON.stringify(car.features || []), id]
+      "UPDATE cars SET title = ?, location = ?, image = ?, price = ?, rating = ?, specs = ?, features = ?, gallery = ?, meta_description = ? WHERE id = ?",
+      [car.title, car.location, car.image, car.price, car.rating, car.specs, JSON.stringify(car.features || []), JSON.stringify(car.gallery || []), car.metaDescription || "", id]
     );
     return { id, ...car };
   }
@@ -314,6 +332,8 @@ class MySQLStorage implements IStorage {
       ...row,
       originalPrice: row.original_price,
       endsIn: row.ends_in,
+      gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
+      metaDescription: row.meta_description || "",
     }));
   }
 
@@ -325,6 +345,8 @@ class MySQLStorage implements IStorage {
       ...row,
       originalPrice: row.original_price,
       endsIn: row.ends_in,
+      gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
+      metaDescription: row.meta_description || "",
     };
   }
 
@@ -336,6 +358,8 @@ class MySQLStorage implements IStorage {
           ...row,
           originalPrice: row.original_price,
           endsIn: row.ends_in,
+          gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
+          metaDescription: row.meta_description || "",
         };
       }
     }
@@ -345,8 +369,8 @@ class MySQLStorage implements IStorage {
   async createLastMinuteOffer(offer: any): Promise<any> {
     const id = this.generateId();
     await pool.query(
-      "INSERT INTO last_minute_offers (id, title, location, image, price, original_price, rating, ends_in, discount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [id, offer.title, offer.location, offer.image, offer.price, offer.originalPrice, offer.rating, offer.endsIn, offer.discount]
+      "INSERT INTO last_minute_offers (id, title, location, image, price, original_price, rating, ends_in, discount, gallery, meta_description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [id, offer.title, offer.location, offer.image, offer.price, offer.originalPrice, offer.rating, offer.endsIn, offer.discount, JSON.stringify(offer.gallery || []), offer.metaDescription || ""]
     );
     return { id, ...offer };
   }
@@ -355,8 +379,8 @@ class MySQLStorage implements IStorage {
     const existing = await this.getLastMinuteOfferById(id);
     if (!existing) return null;
     await pool.query(
-      "UPDATE last_minute_offers SET title = ?, location = ?, image = ?, price = ?, original_price = ?, rating = ?, ends_in = ?, discount = ? WHERE id = ?",
-      [offer.title, offer.location, offer.image, offer.price, offer.originalPrice, offer.rating, offer.endsIn, offer.discount, id]
+      "UPDATE last_minute_offers SET title = ?, location = ?, image = ?, price = ?, original_price = ?, rating = ?, ends_in = ?, discount = ?, gallery = ?, meta_description = ? WHERE id = ?",
+      [offer.title, offer.location, offer.image, offer.price, offer.originalPrice, offer.rating, offer.endsIn, offer.discount, JSON.stringify(offer.gallery || []), offer.metaDescription || "", id]
     );
     return { id, ...offer };
   }

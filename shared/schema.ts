@@ -32,6 +32,7 @@ export const trips = pgTable("trips", {
   duration: varchar("duration", { length: 50 }).notNull(),
   category: varchar("category", { length: 100 }).notNull(),
   features: json("features").$type<string[]>().notNull(),
+  metaDescription: text("meta_description"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -53,6 +54,7 @@ export const hotels = pgTable("hotels", {
   isActive: boolean("is_active").default(true),
   availableFrom: date("available_from"),
   availableTo: date("available_to"),
+  metaDescription: text("meta_description"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -97,6 +99,7 @@ export const cars = pgTable("cars", {
   rating: decimal("rating", { precision: 2, scale: 1 }).notNull(),
   specs: varchar("specs", { length: 255 }).notNull(),
   features: json("features").$type<string[]>().notNull(),
+  metaDescription: text("meta_description"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -116,6 +119,7 @@ export const lastMinuteOffers = pgTable("last_minute_offers", {
   rating: decimal("rating", { precision: 2, scale: 1 }).notNull(),
   endsIn: varchar("ends_in", { length: 50 }).notNull(),
   discount: varchar("discount", { length: 50 }).notNull(),
+  metaDescription: text("meta_description"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

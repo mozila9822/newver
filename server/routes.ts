@@ -14,6 +14,99 @@ export async function registerRoutes(
 
   // API Routes - prefix all routes with /api
 
+  // ============== SITEMAP ==============
+  app.get("/sitemap.xml", async (req, res) => {
+    try {
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+      const baseUrl = `${protocol}://${req.get('host')}`;
+      
+      // Get all items for sitemap
+      const [trips, hotels, cars, offers] = await Promise.all([
+        storage.getTrips(),
+        storage.getHotels(),
+        storage.getCars(),
+        storage.getLastMinuteOffers()
+      ]);
+      
+      // Helper function to generate slug from title
+      const generateSlug = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      
+      // Static pages
+      const staticPages = [
+        { url: '/', priority: '1.0', changefreq: 'daily' },
+        { url: '/trips', priority: '0.9', changefreq: 'daily' },
+        { url: '/hotels', priority: '0.9', changefreq: 'daily' },
+        { url: '/cars', priority: '0.9', changefreq: 'daily' },
+        { url: '/last-minute', priority: '0.9', changefreq: 'daily' },
+        { url: '/about', priority: '0.7', changefreq: 'monthly' },
+        { url: '/contact', priority: '0.7', changefreq: 'monthly' },
+        { url: '/support', priority: '0.6', changefreq: 'monthly' },
+      ];
+      
+      // Generate sitemap XML
+      let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+      xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+      
+      // Add static pages
+      for (const page of staticPages) {
+        xml += `  <url>\n`;
+        xml += `    <loc>${baseUrl}${page.url}</loc>\n`;
+        xml += `    <priority>${page.priority}</priority>\n`;
+        xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
+        xml += `  </url>\n`;
+      }
+      
+      // Add trips
+      for (const trip of trips) {
+        const slug = generateSlug(trip.title);
+        xml += `  <url>\n`;
+        xml += `    <loc>${baseUrl}/trips/${slug}</loc>\n`;
+        xml += `    <priority>0.8</priority>\n`;
+        xml += `    <changefreq>weekly</changefreq>\n`;
+        xml += `  </url>\n`;
+      }
+      
+      // Add hotels
+      for (const hotel of hotels) {
+        const slug = generateSlug(hotel.title);
+        xml += `  <url>\n`;
+        xml += `    <loc>${baseUrl}/hotels/${slug}</loc>\n`;
+        xml += `    <priority>0.8</priority>\n`;
+        xml += `    <changefreq>weekly</changefreq>\n`;
+        xml += `  </url>\n`;
+      }
+      
+      // Add cars
+      for (const car of cars) {
+        const slug = generateSlug(car.title);
+        xml += `  <url>\n`;
+        xml += `    <loc>${baseUrl}/cars/${slug}</loc>\n`;
+        xml += `    <priority>0.8</priority>\n`;
+        xml += `    <changefreq>weekly</changefreq>\n`;
+        xml += `  </url>\n`;
+      }
+      
+      // Add offers (uses /last-minute route)
+      for (const offer of offers) {
+        const slug = generateSlug(offer.title);
+        xml += `  <url>\n`;
+        xml += `    <loc>${baseUrl}/last-minute/${slug}</loc>\n`;
+        xml += `    <priority>0.8</priority>\n`;
+        xml += `    <changefreq>daily</changefreq>\n`;
+        xml += `  </url>\n`;
+      }
+      
+      xml += '</urlset>';
+      
+      res.setHeader('Content-Type', 'application/xml');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.send(xml);
+    } catch (error) {
+      console.error("Error generating sitemap:", error);
+      res.status(500).send("Error generating sitemap");
+    }
+  });
+
   // ============== TRIPS ==============
   app.get("/api/trips", async (_req, res) => {
     try {
