@@ -30,7 +30,9 @@ import {
   Mail,
   FileText,
   Send,
-  Clock
+  Clock,
+  ChevronUp,
+  ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -237,6 +239,7 @@ export default function AdminDashboard() {
     linkedinUrl: "",
     youtubeUrl: "",
     whatsappNumber: "",
+    defaultCurrency: "EUR",
   });
   const [loadingSiteSettings, setLoadingSiteSettings] = useState(false);
   const [savingSiteSettings, setSavingSiteSettings] = useState(false);
@@ -303,6 +306,7 @@ export default function AdminDashboard() {
           seoTitle: siteSettings.seoTitle,
           seoDescription: siteSettings.seoDescription,
           seoKeywords: siteSettings.seoKeywords,
+          defaultCurrency: siteSettings.defaultCurrency,
         });
       } else {
         toast({ title: "Error", description: "Failed to save settings.", variant: "destructive" });
@@ -553,6 +557,8 @@ export default function AdminDashboard() {
     availableFrom: undefined as Date | undefined,
     availableTo: undefined as Date | undefined,
     roomTypes: [] as { id: string; name: string; price: string; description?: string; facilities: string[] }[],
+    stars: 5,
+    sortOrder: 0,
     metaDescription: ""
   });
   const [hotelImageFile, setHotelImageFile] = useState<File | null>(null);
@@ -646,6 +652,8 @@ export default function AdminDashboard() {
       availableFrom: hotel.availableFrom ? new Date(hotel.availableFrom) : undefined,
       availableTo: hotel.availableTo ? new Date(hotel.availableTo) : undefined,
       roomTypes: hotel.roomTypes || [],
+      stars: hotel.stars || 5,
+      sortOrder: hotel.sortOrder || 0,
       metaDescription: hotel.metaDescription || hotel.meta_description || ""
     });
     setHotelImageFile(null);
@@ -666,6 +674,8 @@ export default function AdminDashboard() {
       availableFrom: undefined,
       availableTo: undefined,
       roomTypes: [],
+      stars: 5,
+      sortOrder: 0,
       metaDescription: ""
     });
     setHotelImageFile(null);
@@ -1324,6 +1334,30 @@ export default function AdminDashboard() {
                                  )}
                               </div>
                            </div>
+                           <div className="grid gap-2">
+                              <Label>Star Rating</Label>
+                              <div className="flex items-center gap-1">
+                                 {[1, 2, 3, 4, 5].map((star) => (
+                                    <button
+                                       key={star}
+                                       type="button"
+                                       onClick={() => setNewHotel({...newHotel, stars: star})}
+                                       className="p-1 hover:scale-110 transition-transform"
+                                    >
+                                       <Star 
+                                          className={cn(
+                                             "w-6 h-6 transition-colors",
+                                             star <= newHotel.stars 
+                                                ? "fill-yellow-400 text-yellow-400" 
+                                                : "text-muted-foreground"
+                                          )} 
+                                       />
+                                    </button>
+                                 ))}
+                                 <span className="ml-2 text-sm text-muted-foreground">{newHotel.stars} Star Hotel</span>
+                              </div>
+                           </div>
+
                            <div className="grid gap-3 pt-4 border-t">
                               <Label className="text-base">Availability Settings</Label>
                               
@@ -1586,6 +1620,8 @@ export default function AdminDashboard() {
                                  availableFrom: newHotel.availableFrom ? newHotel.availableFrom.toISOString().split('T')[0] : undefined,
                                  availableTo: newHotel.availableTo ? newHotel.availableTo.toISOString().split('T')[0] : undefined,
                                  roomTypes: newHotel.roomTypes,
+                                 stars: newHotel.stars,
+                                 sortOrder: newHotel.sortOrder,
                                  metaDescription: newHotel.metaDescription
                               };
                               
@@ -1595,7 +1631,9 @@ export default function AdminDashboard() {
                                     id: editingHotelId,
                                     ...hotelData,
                                     image: newHotel.image || originalHotel?.image || hotelData.image,
-                                    rating: originalHotel?.rating || hotelData.rating
+                                    rating: originalHotel?.rating || hotelData.rating,
+                                    stars: newHotel.stars,
+                                    sortOrder: newHotel.sortOrder
                                  });
                                  if (success) {
                                     toast({ title: "Hotel Updated", description: "Hotel saved to database." });
@@ -1611,7 +1649,7 @@ export default function AdminDashboard() {
                                  }
                               }
                               setIsHotelDialogOpen(false);
-                              setNewHotel({ title: "", price: "", location: "", image: "", gallery: [], amenities: [], alwaysAvailable: true, isActive: true, availableFrom: undefined, availableTo: undefined, roomTypes: [], metaDescription: "" });
+                              setNewHotel({ title: "", price: "", location: "", image: "", gallery: [], amenities: [], alwaysAvailable: true, isActive: true, availableFrom: undefined, availableTo: undefined, roomTypes: [], stars: 5, sortOrder: 0, metaDescription: "" });
                            }}>{editingHotelId ? "Save Changes" : "Save Hotel"}</Button>
                         </DialogFooter>
                      </DialogContent>
@@ -1619,12 +1657,57 @@ export default function AdminDashboard() {
                </div>
                
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {hotels.map(hotel => (
+                  {hotels.map((hotel, index) => (
                      <Card key={hotel.id} className="overflow-hidden">
                         <div className="h-32 overflow-hidden relative">
                            <img src={hotel.image} className="w-full h-full object-cover" />
+                           <div className="absolute top-2 left-2 bg-white/90 backdrop-blur px-2 py-0.5 rounded text-xs font-bold flex items-center gap-0.5">
+                             {Array.from({ length: hotel.stars || 5 }).map((_, i) => (
+                               <Star key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                             ))}
+                           </div>
                            <div className="absolute top-2 right-2 bg-white/90 backdrop-blur px-2 py-0.5 rounded text-xs font-bold">
                              {hotel.rating} ★
+                           </div>
+                           <div className="absolute bottom-2 right-2 flex gap-1">
+                              <Button
+                                 variant="secondary"
+                                 size="icon"
+                                 className="h-6 w-6 bg-white/90 hover:bg-white"
+                                 disabled={index === 0}
+                                 onClick={async () => {
+                                    const prevHotel = hotels[index - 1];
+                                    if (prevHotel) {
+                                       const newSortOrder = (prevHotel.sortOrder ?? index - 1) - 1;
+                                       const success = await updateHotel({ ...hotel, sortOrder: newSortOrder });
+                                       if (success) {
+                                          refetchData();
+                                          toast({ title: "Hotel Reordered", description: "Hotel moved up." });
+                                       }
+                                    }
+                                 }}
+                              >
+                                 <ChevronUp className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                 variant="secondary"
+                                 size="icon"
+                                 className="h-6 w-6 bg-white/90 hover:bg-white"
+                                 disabled={index === hotels.length - 1}
+                                 onClick={async () => {
+                                    const nextHotel = hotels[index + 1];
+                                    if (nextHotel) {
+                                       const newSortOrder = (nextHotel.sortOrder ?? index + 1) + 1;
+                                       const success = await updateHotel({ ...hotel, sortOrder: newSortOrder });
+                                       if (success) {
+                                          refetchData();
+                                          toast({ title: "Hotel Reordered", description: "Hotel moved down." });
+                                       }
+                                    }
+                                 }}
+                              >
+                                 <ChevronDown className="w-3 h-3" />
+                              </Button>
                            </div>
                         </div>
                         <CardContent className="p-4">
@@ -3251,6 +3334,26 @@ export default function AdminDashboard() {
                               placeholder="Luxury Travel Experiences"
                            />
                            <p className="text-xs text-muted-foreground">A short phrase that describes your business.</p>
+                        </div>
+                        <div className="space-y-2">
+                           <Label>Default Currency</Label>
+                           <Select
+                              value={siteSettings.defaultCurrency || "EUR"}
+                              onValueChange={(value) => setSiteSettings({...siteSettings, defaultCurrency: value})}
+                           >
+                              <SelectTrigger>
+                                 <SelectValue placeholder="Select currency" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                 <SelectItem value="EUR">Euro (€)</SelectItem>
+                                 <SelectItem value="USD">US Dollar ($)</SelectItem>
+                                 <SelectItem value="GBP">British Pound (£)</SelectItem>
+                                 <SelectItem value="CHF">Swiss Franc (CHF)</SelectItem>
+                                 <SelectItem value="AED">UAE Dirham (AED)</SelectItem>
+                                 <SelectItem value="JPY">Japanese Yen (¥)</SelectItem>
+                              </SelectContent>
+                           </Select>
+                           <p className="text-xs text-muted-foreground">The default currency for displaying prices on your website.</p>
                         </div>
                         <div className="space-y-2">
                            <Label>Website Logo</Label>

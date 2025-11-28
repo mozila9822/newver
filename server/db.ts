@@ -60,9 +60,19 @@ export async function initializeDatabase() {
         always_available BOOLEAN DEFAULT true,
         is_active BOOLEAN DEFAULT true,
         available_from VARCHAR(50),
-        available_to VARCHAR(50)
+        available_to VARCHAR(50),
+        stars INT DEFAULT 5,
+        sort_order INT DEFAULT 0
       )
     `);
+
+    // Add stars and sort_order columns if they don't exist
+    try {
+      await connection.query(`ALTER TABLE hotels ADD COLUMN stars INT DEFAULT 5`);
+    } catch (e) {}
+    try {
+      await connection.query(`ALTER TABLE hotels ADD COLUMN sort_order INT DEFAULT 0`);
+    } catch (e) {}
 
     await connection.query(`
       CREATE TABLE IF NOT EXISTS room_types (
@@ -324,9 +334,15 @@ export async function initializeDatabase() {
         linkedin_url VARCHAR(500),
         youtube_url VARCHAR(500),
         whatsapp_number VARCHAR(50),
+        default_currency VARCHAR(10) DEFAULT 'EUR',
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
     `);
+
+    // Add default_currency column if it doesn't exist
+    try {
+      await connection.query(`ALTER TABLE site_settings ADD COLUMN default_currency VARCHAR(10) DEFAULT 'EUR'`);
+    } catch (e) {}
 
     console.log("✅ Database tables initialized");
   } finally {

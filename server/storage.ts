@@ -152,7 +152,7 @@ class MySQLStorage implements IStorage {
   }
 
   async getHotels(): Promise<any[]> {
-    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM hotels");
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM hotels ORDER BY sort_order ASC, id ASC");
     const hotels: any[] = rows.map((row) => ({
       ...row,
       amenities: typeof row.amenities === "string" ? JSON.parse(row.amenities) : row.amenities,
@@ -161,6 +161,8 @@ class MySQLStorage implements IStorage {
       isActive: row.is_active,
       availableFrom: row.available_from,
       availableTo: row.available_to,
+      stars: row.stars || 5,
+      sortOrder: row.sort_order || 0,
       metaDescription: row.meta_description || "",
     }));
 
@@ -183,6 +185,8 @@ class MySQLStorage implements IStorage {
       isActive: row.is_active,
       availableFrom: row.available_from,
       availableTo: row.available_to,
+      stars: row.stars || 5,
+      sortOrder: row.sort_order || 0,
       metaDescription: row.meta_description || "",
     };
     hotel.roomTypes = await this.getRoomTypes(id);
@@ -201,6 +205,8 @@ class MySQLStorage implements IStorage {
           isActive: row.is_active,
           availableFrom: row.available_from,
           availableTo: row.available_to,
+          stars: row.stars || 5,
+          sortOrder: row.sort_order || 0,
           metaDescription: row.meta_description || "",
         };
         hotel.roomTypes = await this.getRoomTypes(row.id);
@@ -213,8 +219,8 @@ class MySQLStorage implements IStorage {
   async createHotel(hotel: any): Promise<any> {
     const id = this.generateId();
     await pool.query(
-      "INSERT INTO hotels (id, title, location, image, price, rating, amenities, always_available, is_active, available_from, available_to, gallery, meta_description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [id, hotel.title, hotel.location, hotel.image, hotel.price, hotel.rating, JSON.stringify(hotel.amenities || []), hotel.alwaysAvailable ?? true, hotel.isActive ?? true, hotel.availableFrom, hotel.availableTo, JSON.stringify(hotel.gallery || []), hotel.metaDescription || ""]
+      "INSERT INTO hotels (id, title, location, image, price, rating, amenities, always_available, is_active, available_from, available_to, gallery, meta_description, stars, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [id, hotel.title, hotel.location, hotel.image, hotel.price, hotel.rating, JSON.stringify(hotel.amenities || []), hotel.alwaysAvailable ?? true, hotel.isActive ?? true, hotel.availableFrom, hotel.availableTo, JSON.stringify(hotel.gallery || []), hotel.metaDescription || "", hotel.stars || 5, hotel.sortOrder || 0]
     );
     return { id, ...hotel, roomTypes: [] };
   }
@@ -223,8 +229,8 @@ class MySQLStorage implements IStorage {
     const existing = await this.getHotelById(id);
     if (!existing) return null;
     await pool.query(
-      "UPDATE hotels SET title = ?, location = ?, image = ?, price = ?, rating = ?, amenities = ?, always_available = ?, is_active = ?, available_from = ?, available_to = ?, gallery = ?, meta_description = ? WHERE id = ?",
-      [hotel.title, hotel.location, hotel.image, hotel.price, hotel.rating, JSON.stringify(hotel.amenities || []), hotel.alwaysAvailable ?? true, hotel.isActive ?? true, hotel.availableFrom, hotel.availableTo, JSON.stringify(hotel.gallery || []), hotel.metaDescription || "", id]
+      "UPDATE hotels SET title = ?, location = ?, image = ?, price = ?, rating = ?, amenities = ?, always_available = ?, is_active = ?, available_from = ?, available_to = ?, gallery = ?, meta_description = ?, stars = ?, sort_order = ? WHERE id = ?",
+      [hotel.title, hotel.location, hotel.image, hotel.price, hotel.rating, JSON.stringify(hotel.amenities || []), hotel.alwaysAvailable ?? true, hotel.isActive ?? true, hotel.availableFrom, hotel.availableTo, JSON.stringify(hotel.gallery || []), hotel.metaDescription || "", hotel.stars || 5, hotel.sortOrder || 0, id]
     );
     return { id, ...hotel };
   }
@@ -895,6 +901,7 @@ class MySQLStorage implements IStorage {
           linkedinUrl: "",
           youtubeUrl: "",
           whatsappNumber: "",
+          defaultCurrency: "EUR",
         };
       }
       const row = rows[0];
@@ -914,6 +921,7 @@ class MySQLStorage implements IStorage {
         linkedinUrl: row.linkedin_url || "",
         youtubeUrl: row.youtube_url || "",
         whatsappNumber: row.whatsapp_number || "",
+        defaultCurrency: row.default_currency || "EUR",
       };
     } catch (error) {
       console.error("Error getting site settings:", error);
@@ -933,6 +941,7 @@ class MySQLStorage implements IStorage {
         linkedinUrl: "",
         youtubeUrl: "",
         whatsappNumber: "",
+        defaultCurrency: "EUR",
       };
     }
   }
@@ -940,14 +949,15 @@ class MySQLStorage implements IStorage {
   async updateSiteSettings(settings: any): Promise<any> {
     await pool.query(
       `INSERT INTO site_settings (id, site_name, logo_url, tagline, seo_title, seo_description, seo_keywords, 
-        contact_email, contact_phone, contact_address, facebook_url, instagram_url, twitter_url, linkedin_url, youtube_url, whatsapp_number)
-       VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        contact_email, contact_phone, contact_address, facebook_url, instagram_url, twitter_url, linkedin_url, youtube_url, whatsapp_number, default_currency)
+       VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE 
         site_name = VALUES(site_name), logo_url = VALUES(logo_url), tagline = VALUES(tagline),
         seo_title = VALUES(seo_title), seo_description = VALUES(seo_description), seo_keywords = VALUES(seo_keywords),
         contact_email = VALUES(contact_email), contact_phone = VALUES(contact_phone), contact_address = VALUES(contact_address),
         facebook_url = VALUES(facebook_url), instagram_url = VALUES(instagram_url), twitter_url = VALUES(twitter_url),
-        linkedin_url = VALUES(linkedin_url), youtube_url = VALUES(youtube_url), whatsapp_number = VALUES(whatsapp_number)`,
+        linkedin_url = VALUES(linkedin_url), youtube_url = VALUES(youtube_url), whatsapp_number = VALUES(whatsapp_number),
+        default_currency = VALUES(default_currency)`,
       [
         settings.siteName || "Voyager Hub",
         settings.logoUrl || "",
@@ -964,6 +974,7 @@ class MySQLStorage implements IStorage {
         settings.linkedinUrl || "",
         settings.youtubeUrl || "",
         settings.whatsappNumber || "",
+        settings.defaultCurrency || "EUR",
       ]
     );
     return settings;

@@ -56,6 +56,8 @@ export interface Hotel {
   isActive: boolean;
   availableFrom?: string;
   availableTo?: string;
+  stars?: number;
+  sortOrder?: number;
   roomTypes?: RoomType[];
 }
 
@@ -155,6 +157,7 @@ export interface WebsiteSettings {
   linkedinUrl: string;
   youtubeUrl: string;
   whatsappNumber: string;
+  defaultCurrency: string;
 }
 
 interface StoreContextType {
@@ -239,6 +242,7 @@ const initialWebsiteSettings: WebsiteSettings = {
   linkedinUrl: "",
   youtubeUrl: "",
   whatsappNumber: "",
+  defaultCurrency: "EUR",
 };
 
 const initialUserProfile: UserProfile = {
@@ -413,6 +417,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           linkedinUrl: siteSettingsData.linkedinUrl || "",
           youtubeUrl: siteSettingsData.youtubeUrl || "",
           whatsappNumber: siteSettingsData.whatsappNumber || "",
+          defaultCurrency: siteSettingsData.defaultCurrency || "EUR",
         });
       }
     } catch (error) {

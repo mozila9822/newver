@@ -54,6 +54,8 @@ export const hotels = pgTable("hotels", {
   isActive: boolean("is_active").default(true),
   availableFrom: date("available_from"),
   availableTo: date("available_to"),
+  stars: integer("stars").default(5),
+  sortOrder: integer("sort_order").default(0),
   metaDescription: text("meta_description"),
   createdAt: timestamp("created_at").defaultNow(),
 });
