@@ -182,6 +182,50 @@ export async function initializeDatabase() {
       // Column already exists, ignore
     }
 
+    // Add gallery column to trips, hotels, cars, last_minute_offers if it doesn't exist
+    try {
+      await connection.query("ALTER TABLE trips ADD COLUMN gallery JSON DEFAULT '[]'");
+    } catch (e) {
+      // Column already exists, ignore
+    }
+    try {
+      await connection.query("ALTER TABLE hotels ADD COLUMN gallery JSON DEFAULT '[]'");
+    } catch (e) {
+      // Column already exists, ignore
+    }
+    try {
+      await connection.query("ALTER TABLE cars ADD COLUMN gallery JSON DEFAULT '[]'");
+    } catch (e) {
+      // Column already exists, ignore
+    }
+    try {
+      await connection.query("ALTER TABLE last_minute_offers ADD COLUMN gallery JSON DEFAULT '[]'");
+    } catch (e) {
+      // Column already exists, ignore
+    }
+
+    // Add created_at column to trips, hotels, cars, last_minute_offers if it doesn't exist
+    try {
+      await connection.query("ALTER TABLE trips ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+    } catch (e) {
+      // Column already exists, ignore
+    }
+    try {
+      await connection.query("ALTER TABLE hotels ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+    } catch (e) {
+      // Column already exists, ignore
+    }
+    try {
+      await connection.query("ALTER TABLE cars ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+    } catch (e) {
+      // Column already exists, ignore
+    }
+    try {
+      await connection.query("ALTER TABLE last_minute_offers ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+    } catch (e) {
+      // Column already exists, ignore
+    }
+
     await connection.query(`
       CREATE TABLE IF NOT EXISTS email_templates (
         id VARCHAR(36) PRIMARY KEY,
