@@ -1,15 +1,18 @@
 import { pool } from "./db";
 import { RowDataPacket } from "mysql2/promise";
+import { generateSlug } from "../shared/utils";
 
 export interface IStorage {
   getTrips(): Promise<any[]>;
   getTripById(id: string): Promise<any | null>;
+  getTripBySlug(slug: string): Promise<any | null>;
   createTrip(trip: any): Promise<any>;
   updateTrip(id: string, trip: any): Promise<any | null>;
   deleteTrip(id: string): Promise<boolean>;
 
   getHotels(): Promise<any[]>;
   getHotelById(id: string): Promise<any | null>;
+  getHotelBySlug(slug: string): Promise<any | null>;
   createHotel(hotel: any): Promise<any>;
   updateHotel(id: string, hotel: any): Promise<any | null>;
   deleteHotel(id: string): Promise<boolean>;
@@ -21,12 +24,14 @@ export interface IStorage {
 
   getCars(): Promise<any[]>;
   getCarById(id: string): Promise<any | null>;
+  getCarBySlug(slug: string): Promise<any | null>;
   createCar(car: any): Promise<any>;
   updateCar(id: string, car: any): Promise<any | null>;
   deleteCar(id: string): Promise<boolean>;
 
   getLastMinuteOffers(): Promise<any[]>;
   getLastMinuteOfferById(id: string): Promise<any | null>;
+  getLastMinuteOfferBySlug(slug: string): Promise<any | null>;
   createLastMinuteOffer(offer: any): Promise<any>;
   updateLastMinuteOffer(id: string, offer: any): Promise<any | null>;
   deleteLastMinuteOffer(id: string): Promise<boolean>;
@@ -103,6 +108,19 @@ class MySQLStorage implements IStorage {
     };
   }
 
+  async getTripBySlug(slug: string): Promise<any | null> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM trips", []);
+    for (const row of rows) {
+      if (generateSlug(row.title) === slug) {
+        return {
+          ...row,
+          features: typeof row.features === "string" ? JSON.parse(row.features) : row.features,
+        };
+      }
+    }
+    return null;
+  }
+
   async createTrip(trip: any): Promise<any> {
     const id = this.generateId();
     await pool.query(
@@ -159,6 +177,25 @@ class MySQLStorage implements IStorage {
     };
     hotel.roomTypes = await this.getRoomTypes(id);
     return hotel;
+  }
+
+  async getHotelBySlug(slug: string): Promise<any | null> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM hotels", []);
+    for (const row of rows) {
+      if (generateSlug(row.title) === slug) {
+        const hotel = {
+          ...row,
+          amenities: typeof row.amenities === "string" ? JSON.parse(row.amenities) : row.amenities,
+          alwaysAvailable: row.always_available,
+          isActive: row.is_active,
+          availableFrom: row.available_from,
+          availableTo: row.available_to,
+        };
+        hotel.roomTypes = await this.getRoomTypes(row.id);
+        return hotel;
+      }
+    }
+    return null;
   }
 
   async createHotel(hotel: any): Promise<any> {
@@ -234,6 +271,19 @@ class MySQLStorage implements IStorage {
     };
   }
 
+  async getCarBySlug(slug: string): Promise<any | null> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM cars", []);
+    for (const row of rows) {
+      if (generateSlug(row.title) === slug) {
+        return {
+          ...row,
+          features: typeof row.features === "string" ? JSON.parse(row.features) : row.features,
+        };
+      }
+    }
+    return null;
+  }
+
   async createCar(car: any): Promise<any> {
     const id = this.generateId();
     await pool.query(
@@ -276,6 +326,20 @@ class MySQLStorage implements IStorage {
       originalPrice: row.original_price,
       endsIn: row.ends_in,
     };
+  }
+
+  async getLastMinuteOfferBySlug(slug: string): Promise<any | null> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM last_minute_offers", []);
+    for (const row of rows) {
+      if (generateSlug(row.title) === slug) {
+        return {
+          ...row,
+          originalPrice: row.original_price,
+          endsIn: row.ends_in,
+        };
+      }
+    }
+    return null;
   }
 
   async createLastMinuteOffer(offer: any): Promise<any> {
