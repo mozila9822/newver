@@ -7,6 +7,7 @@ import LastMinuteCard from "@/components/last-minute-card";
 import { useStore } from "@/lib/store-context";
 import { ArrowRight, Globe, Shield, Star, Clock, Car } from "lucide-react";
 import { Link } from "wouter";
+import { generateSlug } from "@/lib/utils";
 
 export default function Home() {
   const { trips, hotels, cars, offers, loading } = useStore();
@@ -162,7 +163,7 @@ export default function Home() {
         <div className="container mx-auto px-6 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div className="order-2 lg:order-1 cursor-pointer group">
-              <Link href={`/details/hotel/${featuredHotel.id}`}>
+              <Link href={`/details/hotel/${generateSlug(featuredHotel.title)}`}>
                 <div className="relative rounded-lg overflow-hidden shadow-2xl h-[500px]">
                   <img 
                     src={featuredHotel.image} 

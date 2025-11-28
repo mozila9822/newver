@@ -3,6 +3,7 @@ import { MapPin, Star, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { useStore } from "@/lib/store-context";
+import { generateSlug } from "@/lib/utils";
 
 interface TripCardProps {
   id: string;
@@ -18,6 +19,7 @@ interface TripCardProps {
 export default function TripCard({ id, image, title, location, price, rating, duration, type }: TripCardProps) {
   const { getReviewCount } = useStore();
   const reviewCount = getReviewCount(id, type);
+  const slug = generateSlug(title);
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -26,7 +28,7 @@ export default function TripCard({ id, image, title, location, price, rating, du
       transition={{ duration: 0.5 }}
       className="group relative bg-card rounded-lg overflow-hidden border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col h-full"
     >
-      <Link href={`/details/${type}/${id}`} className="absolute inset-0 z-20 focus:outline-none">
+      <Link href={`/details/${type}/${slug}`} className="absolute inset-0 z-20 focus:outline-none">
         <span className="sr-only">View details for {title}</span>
       </Link>
 
@@ -68,7 +70,7 @@ export default function TripCard({ id, image, title, location, price, rating, du
             <span className="text-xs text-muted-foreground block">Starting from</span>
             <span className="text-lg font-bold text-primary">{price}</span>
           </div>
-          <Link href={`/details/${type}/${id}`}>
+          <Link href={`/details/${type}/${slug}`}>
             <Button 
               variant="outline" 
               className="border-primary/20 hover:bg-primary hover:text-white group-hover:border-primary transition-all"

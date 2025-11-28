@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { useStore } from "@/lib/store-context";
+import { generateSlug } from "@/lib/utils";
 
 interface LastMinuteCardProps {
   id: string;
@@ -20,6 +21,7 @@ interface LastMinuteCardProps {
 export default function LastMinuteCard({ id, image, title, location, price, originalPrice, rating, endsIn, discount }: LastMinuteCardProps) {
   const { getReviewCount } = useStore();
   const reviewCount = getReviewCount(id, 'offer');
+  const slug = generateSlug(title);
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -28,7 +30,7 @@ export default function LastMinuteCard({ id, image, title, location, price, orig
       transition={{ duration: 0.5 }}
       className="group relative bg-card rounded-lg overflow-hidden border border-border/50 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col h-full ring-1 ring-destructive/10"
     >
-      <Link href={`/details/offer/${id}`} className="absolute inset-0 z-20 focus:outline-none">
+      <Link href={`/details/offer/${slug}`} className="absolute inset-0 z-20 focus:outline-none">
         <span className="sr-only">View offer details for {title}</span>
       </Link>
 
@@ -71,7 +73,7 @@ export default function LastMinuteCard({ id, image, title, location, price, orig
             <span className="text-xs text-muted-foreground block line-through">{originalPrice}</span>
             <span className="text-2xl font-bold text-destructive">{price}</span>
           </div>
-          <Link href={`/details/offer/${id}`}>
+          <Link href={`/details/offer/${slug}`}>
             <Button 
               className="bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20"
             >
