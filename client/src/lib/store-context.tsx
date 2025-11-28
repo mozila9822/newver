@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import * as mockData from "./data";
 
 // Define types based on the data structure
 export interface Trip {
@@ -330,21 +329,50 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(websiteSettings));
   }, [websiteSettings]);
 
-  // Fetch data from API (Mocked for frontend prototype)
+  // Fetch data from API
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const [tripsRes, hotelsRes, carsRes, offersRes, bookingsRes, reviewsRes] = await Promise.all([
+        fetch('/api/trips'),
+        fetch('/api/hotels'),
+        fetch('/api/cars'),
+        fetch('/api/last-minute-offers'),
+        fetch('/api/bookings'),
+        fetch('/api/reviews')
+      ]);
 
-      setTrips(mockData.trips);
-      setHotels(mockData.hotels);
-      setCars(mockData.cars);
-      setOffers(mockData.lastMinuteOffers);
-      setBookings(mockData.bookings);
-      setReviews(mockData.reviews);
+      if (tripsRes.ok) {
+        const tripsData = await tripsRes.json();
+        setTrips(tripsData);
+      }
+      
+      if (hotelsRes.ok) {
+        const hotelsData = await hotelsRes.json();
+        setHotels(hotelsData);
+      }
+      
+      if (carsRes.ok) {
+        const carsData = await carsRes.json();
+        setCars(carsData);
+      }
+      
+      if (offersRes.ok) {
+        const offersData = await offersRes.json();
+        setOffers(offersData);
+      }
+      
+      if (bookingsRes.ok) {
+        const bookingsData = await bookingsRes.json();
+        setBookings(bookingsData);
+      }
+
+      if (reviewsRes.ok) {
+        const reviewsData = await reviewsRes.json();
+        setReviews(reviewsData);
+      }
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching data from API:', error);
     } finally {
       setLoading(false);
     }
@@ -360,70 +388,202 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // ============== TRIP CRUD ==============
   const addTrip = async (trip: Omit<Trip, 'id'>): Promise<Trip | null> => {
-    const newTrip = { ...trip, id: Math.random().toString(36).substr(2, 9) };
-    setTrips(prev => [...prev, newTrip]);
-    return newTrip;
+    try {
+      const res = await fetch('/api/trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(trip)
+      });
+      if (res.ok) {
+        const newTrip = await res.json();
+        setTrips(prev => [...prev, newTrip]);
+        return newTrip;
+      }
+    } catch (error) {
+      console.error('Error adding trip:', error);
+    }
+    return null;
   };
 
   const updateTrip = async (id: string, trip: Partial<Trip>): Promise<boolean> => {
-    setTrips(prev => prev.map(t => t.id === id ? { ...t, ...trip } : t));
-    return true;
+    try {
+      const res = await fetch(`/api/trips/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(trip)
+      });
+      if (res.ok) {
+        const updatedTrip = await res.json();
+        setTrips(prev => prev.map(t => t.id === id ? updatedTrip : t));
+        return true;
+      }
+    } catch (error) {
+      console.error('Error updating trip:', error);
+    }
+    return false;
   };
 
   const deleteTrip = async (id: string): Promise<boolean> => {
-    setTrips(prev => prev.filter(t => t.id !== id));
-    return true;
+    try {
+      const res = await fetch(`/api/trips/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setTrips(prev => prev.filter(t => t.id !== id));
+        return true;
+      }
+    } catch (error) {
+      console.error('Error deleting trip:', error);
+    }
+    return false;
   };
 
   // ============== HOTEL CRUD ==============
   const addHotel = async (hotel: Omit<Hotel, 'id'>): Promise<Hotel | null> => {
-    const newHotel = { ...hotel, id: Math.random().toString(36).substr(2, 9) };
-    setHotels(prev => [...prev, newHotel]);
-    return newHotel;
+    try {
+      const res = await fetch('/api/hotels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(hotel)
+      });
+      if (res.ok) {
+        const newHotel = await res.json();
+        setHotels(prev => [...prev, newHotel]);
+        return newHotel;
+      }
+    } catch (error) {
+      console.error('Error adding hotel:', error);
+    }
+    return null;
   };
 
   const updateHotel = async (hotel: Hotel): Promise<boolean> => {
-    setHotels(prev => prev.map(h => h.id === hotel.id ? hotel : h));
-    return true;
+    try {
+      const res = await fetch(`/api/hotels/${hotel.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(hotel)
+      });
+      if (res.ok) {
+        const updatedHotel = await res.json();
+        setHotels(prev => prev.map(h => h.id === hotel.id ? updatedHotel : h));
+        return true;
+      }
+    } catch (error) {
+      console.error('Error updating hotel:', error);
+    }
+    return false;
   };
 
   const deleteHotel = async (id: string): Promise<boolean> => {
-    setHotels(prev => prev.filter(h => h.id !== id));
-    return true;
+    try {
+      const res = await fetch(`/api/hotels/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setHotels(prev => prev.filter(h => h.id !== id));
+        return true;
+      }
+    } catch (error) {
+      console.error('Error deleting hotel:', error);
+    }
+    return false;
   };
 
   // ============== CAR CRUD ==============
   const addCar = async (car: Omit<Car, 'id'>): Promise<Car | null> => {
-    const newCar = { ...car, id: Math.random().toString(36).substr(2, 9) };
-    setCars(prev => [...prev, newCar]);
-    return newCar;
+    try {
+      const res = await fetch('/api/cars', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(car)
+      });
+      if (res.ok) {
+        const newCar = await res.json();
+        setCars(prev => [...prev, newCar]);
+        return newCar;
+      }
+    } catch (error) {
+      console.error('Error adding car:', error);
+    }
+    return null;
   };
 
   const updateCar = async (id: string, car: Partial<Car>): Promise<boolean> => {
-    setCars(prev => prev.map(c => c.id === id ? { ...c, ...car } : c));
-    return true;
+    try {
+      const res = await fetch(`/api/cars/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(car)
+      });
+      if (res.ok) {
+        const updatedCar = await res.json();
+        setCars(prev => prev.map(c => c.id === id ? updatedCar : c));
+        return true;
+      }
+    } catch (error) {
+      console.error('Error updating car:', error);
+    }
+    return false;
   };
 
   const deleteCar = async (id: string): Promise<boolean> => {
-    setCars(prev => prev.filter(c => c.id !== id));
-    return true;
+    try {
+      const res = await fetch(`/api/cars/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setCars(prev => prev.filter(c => c.id !== id));
+        return true;
+      }
+    } catch (error) {
+      console.error('Error deleting car:', error);
+    }
+    return false;
   };
 
   // ============== OFFER CRUD ==============
   const addOffer = async (offer: Omit<Offer, 'id'>): Promise<Offer | null> => {
-    const newOffer = { ...offer, id: Math.random().toString(36).substr(2, 9) };
-    setOffers(prev => [...prev, newOffer]);
-    return newOffer;
+    try {
+      const res = await fetch('/api/last-minute-offers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(offer)
+      });
+      if (res.ok) {
+        const newOffer = await res.json();
+        setOffers(prev => [...prev, newOffer]);
+        return newOffer;
+      }
+    } catch (error) {
+      console.error('Error adding offer:', error);
+    }
+    return null;
   };
 
   const updateOffer = async (id: string, offer: Partial<Offer>): Promise<boolean> => {
-    setOffers(prev => prev.map(o => o.id === id ? { ...o, ...offer } : o));
-    return true;
+    try {
+      const res = await fetch(`/api/last-minute-offers/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(offer)
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setOffers(prev => prev.map(o => o.id === id ? updated : o));
+        return true;
+      }
+    } catch (error) {
+      console.error('Error updating offer:', error);
+    }
+    return false;
   };
 
   const deleteOffer = async (id: string): Promise<boolean> => {
-    setOffers(prev => prev.filter(o => o.id !== id));
-    return true;
+    try {
+      const res = await fetch(`/api/last-minute-offers/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setOffers(prev => prev.filter(o => o.id !== id));
+        return true;
+      }
+    } catch (error) {
+      console.error('Error deleting offer:', error);
+    }
+    return false;
   };
 
   // Legacy deleteItem for backwards compatibility
