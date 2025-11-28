@@ -1023,5 +1023,26 @@ export async function registerRoutes(
     }
   });
 
+  // ============== SITE SETTINGS ==============
+  app.get("/api/site-settings", async (_req, res) => {
+    try {
+      const settings = await storage.getSiteSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching site settings:", error);
+      res.status(500).json({ message: "Failed to fetch site settings" });
+    }
+  });
+
+  app.put("/api/site-settings", async (req, res) => {
+    try {
+      const updated = await storage.updateSiteSettings(req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating site settings:", error);
+      res.status(500).json({ message: "Failed to update site settings" });
+    }
+  });
+
   return httpServer;
 }
