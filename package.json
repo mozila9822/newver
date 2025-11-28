@@ -6,7 +6,7 @@
   "scripts": {
     "dev:client": "vite dev --port 5000",
     "dev": "NODE_ENV=development tsx server/index.ts",
-    "build": "tsx script/build.ts",
+    "build": "npx tsx script/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "start:auto": "node start.js",
     "check": "tsc",
@@ -102,9 +102,9 @@
     "esbuild": "^0.25.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.14",
-    "tsx": "^4.20.5",
+    "tsx": "^4.20.6",
     "typescript": "5.6.3",
-    "vite": "^7.1.9"
+    "vite": "^7.2.4"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
