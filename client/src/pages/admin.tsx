@@ -221,6 +221,25 @@ export default function AdminDashboard() {
   const [emailSettings, setEmailSettings] = useState<any>(null);
   const [loadingEmailSettings, setLoadingEmailSettings] = useState(false);
   const [templatesDialogOpen, setTemplatesDialogOpen] = useState(false);
+  const [siteSettings, setSiteSettings] = useState<any>({
+    siteName: "Voyager Hub",
+    logoUrl: "",
+    tagline: "",
+    seoTitle: "",
+    seoDescription: "",
+    seoKeywords: "",
+    contactEmail: "",
+    contactPhone: "",
+    contactAddress: "",
+    facebookUrl: "",
+    instagramUrl: "",
+    twitterUrl: "",
+    linkedinUrl: "",
+    youtubeUrl: "",
+    whatsappNumber: "",
+  });
+  const [loadingSiteSettings, setLoadingSiteSettings] = useState(false);
+  const [savingSiteSettings, setSavingSiteSettings] = useState(false);
 
   // Fetch tickets when support tab is active
   useEffect(() => {
@@ -240,13 +259,61 @@ export default function AdminDashboard() {
   // Fetch payment settings when settings tab is active or when switching to payments sub-tab
   useEffect(() => {
     if (activeTab === "settings") {
-      if (settingsSubTab === "payments") {
+      if (settingsSubTab === "general") {
+        fetchSiteSettings();
+      } else if (settingsSubTab === "payments") {
         fetchPaymentSettings();
       } else if (settingsSubTab === "email") {
         fetchEmailSettings();
       }
     }
   }, [activeTab, settingsSubTab]);
+
+  const fetchSiteSettings = async () => {
+    setLoadingSiteSettings(true);
+    try {
+      const res = await fetch('/api/site-settings');
+      if (res.ok) {
+        const settings = await res.json();
+        setSiteSettings(settings);
+      } else {
+        console.error('Failed to fetch site settings:', res.statusText);
+      }
+    } catch (error) {
+      console.error('Error fetching site settings:', error);
+    } finally {
+      setLoadingSiteSettings(false);
+    }
+  };
+
+  const saveSiteSettings = async () => {
+    setSavingSiteSettings(true);
+    try {
+      const res = await fetch('/api/site-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(siteSettings)
+      });
+      if (res.ok) {
+        toast({ title: "Settings Saved", description: "Website settings have been updated successfully." });
+        // Also update the store context so changes reflect immediately on the website
+        updateWebsiteSettings({
+          name: siteSettings.siteName,
+          logo: siteSettings.logoUrl,
+          seoTitle: siteSettings.seoTitle,
+          seoDescription: siteSettings.seoDescription,
+          seoKeywords: siteSettings.seoKeywords,
+        });
+      } else {
+        toast({ title: "Error", description: "Failed to save settings.", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error('Error saving site settings:', error);
+      toast({ title: "Error", description: "Failed to save settings.", variant: "destructive" });
+    } finally {
+      setSavingSiteSettings(false);
+    }
+  };
 
   const fetchPaymentSettings = async () => {
     setLoadingPaymentSettings(true);
@@ -3080,12 +3147,14 @@ export default function AdminDashboard() {
                   {settingsSubTab === "general" && (
                   <Button 
                     className="bg-primary text-white"
-                    onClick={() => {
-                      updateWebsiteSettings(localSettings);
-                      toast({ title: "Settings Saved", description: "Website settings have been updated successfully." });
-                    }}
+                    onClick={saveSiteSettings}
+                    disabled={savingSiteSettings}
                   >
-                    <Check className="w-4 h-4 mr-2" /> Save Changes
+                    {savingSiteSettings ? (
+                      <>Saving...</>
+                    ) : (
+                      <><Check className="w-4 h-4 mr-2" /> Save Changes</>
+                    )}
                   </Button>
                   )}
                </div>
@@ -3116,7 +3185,10 @@ export default function AdminDashboard() {
 
                {settingsSubTab === "general" && (
                <>
-
+               {loadingSiteSettings ? (
+                  <div className="text-center py-8 text-muted-foreground">Loading settings...</div>
+               ) : (
+               <>
                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <Card>
                      <CardHeader>
@@ -3127,11 +3199,20 @@ export default function AdminDashboard() {
                         <div className="space-y-2">
                            <Label>Website Name</Label>
                            <Input 
-                              value={localSettings.name} 
-                              onChange={(e) => setLocalSettings({...localSettings, name: e.target.value})}
+                              value={siteSettings.siteName} 
+                              onChange={(e) => setSiteSettings({...siteSettings, siteName: e.target.value})}
                               placeholder="Voyager Hub"
                            />
                            <p className="text-xs text-muted-foreground">This name will appear in the navigation bar and footer.</p>
+                        </div>
+                        <div className="space-y-2">
+                           <Label>Tagline / Slogan</Label>
+                           <Input 
+                              value={siteSettings.tagline} 
+                              onChange={(e) => setSiteSettings({...siteSettings, tagline: e.target.value})}
+                              placeholder="Luxury Travel Experiences"
+                           />
+                           <p className="text-xs text-muted-foreground">A short phrase that describes your business.</p>
                         </div>
                         <div className="space-y-2">
                            <Label>Website Logo</Label>
@@ -3139,8 +3220,8 @@ export default function AdminDashboard() {
                               <div className="flex-1 space-y-3">
                                   <div className="flex gap-2">
                                       <Input 
-                                         value={localSettings.logo} 
-                                         onChange={(e) => setLocalSettings({...localSettings, logo: e.target.value})}
+                                         value={siteSettings.logoUrl} 
+                                         onChange={(e) => setSiteSettings({...siteSettings, logoUrl: e.target.value})}
                                          placeholder="Paste image URL..."
                                       />
                                   </div>
@@ -3162,7 +3243,7 @@ export default function AdminDashboard() {
                                             if (file) {
                                                 const reader = new FileReader();
                                                 reader.onloadend = () => {
-                                                    setLocalSettings({...localSettings, logo: reader.result as string});
+                                                    setSiteSettings({...siteSettings, logoUrl: reader.result as string});
                                                 };
                                                 reader.readAsDataURL(file);
                                             }
@@ -3172,15 +3253,15 @@ export default function AdminDashboard() {
                               </div>
                               
                               <div className="flex flex-col gap-2 items-center">
-                                {localSettings.logo ? (
+                                {siteSettings.logoUrl ? (
                                    <div className="w-24 h-24 border rounded-lg flex items-center justify-center bg-muted/50 overflow-hidden flex-shrink-0 relative group">
-                                      <img src={localSettings.logo} alt="Preview" className="w-full h-full object-contain p-2" />
+                                      <img src={siteSettings.logoUrl} alt="Preview" className="w-full h-full object-contain p-2" />
                                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                           <Button 
                                               variant="destructive" 
                                               size="sm"
                                               className="h-8 w-8"
-                                              onClick={() => setLocalSettings({...localSettings, logo: ""})}
+                                              onClick={() => setSiteSettings({...siteSettings, logoUrl: ""})}
                                           >
                                               <Trash className="w-4 h-4" />
                                           </Button>
@@ -3208,8 +3289,8 @@ export default function AdminDashboard() {
                         <div className="space-y-2">
                            <Label>Default Page Title</Label>
                            <Input 
-                              value={localSettings.seoTitle} 
-                              onChange={(e) => setLocalSettings({...localSettings, seoTitle: e.target.value})}
+                              value={siteSettings.seoTitle} 
+                              onChange={(e) => setSiteSettings({...siteSettings, seoTitle: e.target.value})}
                               placeholder="Voyager Hub | Luxury Travel"
                            />
                         </div>
@@ -3217,16 +3298,16 @@ export default function AdminDashboard() {
                            <Label>Meta Description</Label>
                            <textarea 
                               className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                              value={localSettings.seoDescription} 
-                              onChange={(e) => setLocalSettings({...localSettings, seoDescription: e.target.value})}
+                              value={siteSettings.seoDescription} 
+                              onChange={(e) => setSiteSettings({...siteSettings, seoDescription: e.target.value})}
                               placeholder="A brief description of your website..."
                            />
                         </div>
                         <div className="space-y-2">
                            <Label>Keywords</Label>
                            <Input 
-                              value={localSettings.seoKeywords} 
-                              onChange={(e) => setLocalSettings({...localSettings, seoKeywords: e.target.value})}
+                              value={siteSettings.seoKeywords} 
+                              onChange={(e) => setSiteSettings({...siteSettings, seoKeywords: e.target.value})}
                               placeholder="travel, luxury, hotels, trips"
                            />
                            <p className="text-xs text-muted-foreground">Separate keywords with commas.</p>
@@ -3234,6 +3315,106 @@ export default function AdminDashboard() {
                      </CardContent>
                   </Card>
                </div>
+
+               {/* Contact Information */}
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card>
+                     <CardHeader>
+                        <CardTitle>Contact Information</CardTitle>
+                        <CardDescription>This information will be displayed on your website contact page and footer.</CardDescription>
+                     </CardHeader>
+                     <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                           <Label>Email Address</Label>
+                           <Input 
+                              type="email"
+                              value={siteSettings.contactEmail} 
+                              onChange={(e) => setSiteSettings({...siteSettings, contactEmail: e.target.value})}
+                              placeholder="contact@voyagerhub.com"
+                           />
+                        </div>
+                        <div className="space-y-2">
+                           <Label>Phone Number</Label>
+                           <Input 
+                              type="tel"
+                              value={siteSettings.contactPhone} 
+                              onChange={(e) => setSiteSettings({...siteSettings, contactPhone: e.target.value})}
+                              placeholder="+1 (555) 123-4567"
+                           />
+                        </div>
+                        <div className="space-y-2">
+                           <Label>Address</Label>
+                           <textarea 
+                              className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                              value={siteSettings.contactAddress} 
+                              onChange={(e) => setSiteSettings({...siteSettings, contactAddress: e.target.value})}
+                              placeholder="123 Luxury Avenue, Suite 100&#10;New York, NY 10001&#10;United States"
+                           />
+                        </div>
+                        <div className="space-y-2">
+                           <Label>WhatsApp Number</Label>
+                           <Input 
+                              type="tel"
+                              value={siteSettings.whatsappNumber} 
+                              onChange={(e) => setSiteSettings({...siteSettings, whatsappNumber: e.target.value})}
+                              placeholder="+1 (555) 123-4567"
+                           />
+                           <p className="text-xs text-muted-foreground">Include country code for WhatsApp click-to-chat.</p>
+                        </div>
+                     </CardContent>
+                  </Card>
+
+                  <Card>
+                     <CardHeader>
+                        <CardTitle>Social Media Links</CardTitle>
+                        <CardDescription>Connect your social media profiles.</CardDescription>
+                     </CardHeader>
+                     <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                           <Label>Facebook</Label>
+                           <Input 
+                              value={siteSettings.facebookUrl} 
+                              onChange={(e) => setSiteSettings({...siteSettings, facebookUrl: e.target.value})}
+                              placeholder="https://facebook.com/voyagerhub"
+                           />
+                        </div>
+                        <div className="space-y-2">
+                           <Label>Instagram</Label>
+                           <Input 
+                              value={siteSettings.instagramUrl} 
+                              onChange={(e) => setSiteSettings({...siteSettings, instagramUrl: e.target.value})}
+                              placeholder="https://instagram.com/voyagerhub"
+                           />
+                        </div>
+                        <div className="space-y-2">
+                           <Label>Twitter / X</Label>
+                           <Input 
+                              value={siteSettings.twitterUrl} 
+                              onChange={(e) => setSiteSettings({...siteSettings, twitterUrl: e.target.value})}
+                              placeholder="https://twitter.com/voyagerhub"
+                           />
+                        </div>
+                        <div className="space-y-2">
+                           <Label>LinkedIn</Label>
+                           <Input 
+                              value={siteSettings.linkedinUrl} 
+                              onChange={(e) => setSiteSettings({...siteSettings, linkedinUrl: e.target.value})}
+                              placeholder="https://linkedin.com/company/voyagerhub"
+                           />
+                        </div>
+                        <div className="space-y-2">
+                           <Label>YouTube</Label>
+                           <Input 
+                              value={siteSettings.youtubeUrl} 
+                              onChange={(e) => setSiteSettings({...siteSettings, youtubeUrl: e.target.value})}
+                              placeholder="https://youtube.com/@voyagerhub"
+                           />
+                        </div>
+                     </CardContent>
+                  </Card>
+               </div>
+               </>
+               )}
                </>
                )}
 
