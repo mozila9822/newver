@@ -30,6 +30,9 @@ export interface IStorage {
   createLastMinuteOffer(offer: any): Promise<any>;
   updateLastMinuteOffer(id: string, offer: any): Promise<any | null>;
   deleteLastMinuteOffer(id: string): Promise<boolean>;
+  createOffer(offer: any): Promise<any>;
+  updateOffer(id: string, offer: any): Promise<any | null>;
+  deleteOffer(id: string): Promise<boolean>;
 
   getBookings(): Promise<any[]>;
   getBookingById(id: string): Promise<any | null>;
@@ -39,26 +42,29 @@ export interface IStorage {
 
   getReviews(): Promise<any[]>;
   getReviewsByItem(itemId: string, itemType: string): Promise<any[]>;
+  getApprovedReviewsByItem(itemId: string, itemType: string): Promise<any[]>;
   getReviewById(id: string): Promise<any | null>;
   createReview(review: any): Promise<any>;
   updateReview(id: string, review: any): Promise<any | null>;
+  updateReviewStatus(id: string, status: string): Promise<any | null>;
   deleteReview(id: string): Promise<boolean>;
 
-  getSupportTickets(): Promise<any[]>;
-  getSupportTicketById(id: string): Promise<any | null>;
-  createSupportTicket(ticket: any): Promise<any>;
-  updateSupportTicket(id: string, ticket: any): Promise<any | null>;
-  deleteSupportTicket(id: string): Promise<boolean>;
-
-  getTicketReplies(ticketId: string): Promise<any[]>;
-  createTicketReply(reply: any): Promise<any>;
+  getTickets(): Promise<any[]>;
+  getTicketsByUser(userEmail: string): Promise<any[]>;
+  getTicketById(id: string): Promise<any | null>;
+  createTicket(ticket: any): Promise<any>;
+  updateTicketStatus(id: string, status: string): Promise<any | null>;
+  addTicketReply(ticketId: string, reply: any): Promise<any>;
+  deleteTicket(id: string): Promise<boolean>;
 
   getPaymentSettings(): Promise<any | null>;
-  updatePaymentSettings(settings: any): Promise<any>;
+  getPaymentSettingByProvider(provider: string): Promise<any | null>;
+  updatePaymentSettings(provider: string, settings: any): Promise<any>;
 
   getSubscribers(): Promise<any[]>;
-  createSubscriber(email: string): Promise<any>;
+  createSubscriber(email: string, name?: string): Promise<any>;
   deleteSubscriber(id: string): Promise<boolean>;
+  unsubscribeSubscriber(email: string): Promise<boolean>;
 
   getEmailTemplates(): Promise<any[]>;
   getEmailTemplateById(id: string): Promise<any | null>;
@@ -295,6 +301,18 @@ class MySQLStorage implements IStorage {
     return result.affectedRows > 0;
   }
 
+  async createOffer(offer: any): Promise<any> {
+    return this.createLastMinuteOffer(offer);
+  }
+
+  async updateOffer(id: string, offer: any): Promise<any | null> {
+    return this.updateLastMinuteOffer(id, offer);
+  }
+
+  async deleteOffer(id: string): Promise<boolean> {
+    return this.deleteLastMinuteOffer(id);
+  }
+
   async getBookings(): Promise<any[]> {
     const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM bookings");
     return rows as any[];
@@ -344,6 +362,22 @@ class MySQLStorage implements IStorage {
 
   async getReviewsByItem(itemId: string, itemType: string): Promise<any[]> {
     const [rows] = await pool.query<RowDataPacket[]>(
+      "SELECT * FROM reviews WHERE item_id = ? AND item_type = ? ORDER BY created_at DESC",
+      [itemId, itemType]
+    );
+    return rows.map((row) => ({
+      ...row,
+      itemId: row.item_id,
+      itemType: row.item_type,
+      itemTitle: row.item_title,
+      userName: row.user_name,
+      userEmail: row.user_email,
+      createdAt: row.created_at,
+    }));
+  }
+
+  async getApprovedReviewsByItem(itemId: string, itemType: string): Promise<any[]> {
+    const [rows] = await pool.query<RowDataPacket[]>(
       "SELECT * FROM reviews WHERE item_id = ? AND item_type = ? AND status = 'approved' ORDER BY created_at DESC",
       [itemId, itemType]
     );
@@ -392,12 +426,19 @@ class MySQLStorage implements IStorage {
     return { id, ...existing, ...review };
   }
 
+  async updateReviewStatus(id: string, status: string): Promise<any | null> {
+    const existing = await this.getReviewById(id);
+    if (!existing) return null;
+    await pool.query("UPDATE reviews SET status = ? WHERE id = ?", [status, id]);
+    return { ...existing, status };
+  }
+
   async deleteReview(id: string): Promise<boolean> {
     const [result] = await pool.query<any>("DELETE FROM reviews WHERE id = ?", [id]);
     return result.affectedRows > 0;
   }
 
-  async getSupportTickets(): Promise<any[]> {
+  async getTickets(): Promise<any[]> {
     const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM support_tickets ORDER BY created_at DESC");
     return rows.map((row) => ({
       ...row,
@@ -407,21 +448,42 @@ class MySQLStorage implements IStorage {
     }));
   }
 
-  async getSupportTicketById(id: string): Promise<any | null> {
+  async getTicketsByUser(userEmail: string): Promise<any[]> {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      "SELECT * FROM support_tickets WHERE user_email = ? ORDER BY created_at DESC",
+      [userEmail]
+    );
+    return rows.map((row) => ({
+      ...row,
+      userName: row.user_name,
+      userEmail: row.user_email,
+      createdAt: row.created_at,
+    }));
+  }
+
+  async getTicketById(id: string): Promise<any | null> {
     const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM support_tickets WHERE id = ?", [id]);
     if (rows.length === 0) return null;
     const row = rows[0];
-    const ticket = {
+    const ticket: any = {
       ...row,
       userName: row.user_name,
       userEmail: row.user_email,
       createdAt: row.created_at,
     };
-    ticket.replies = await this.getTicketReplies(id);
+    const [replies] = await pool.query<RowDataPacket[]>(
+      "SELECT * FROM ticket_replies WHERE ticket_id = ? ORDER BY created_at ASC",
+      [id]
+    );
+    ticket.replies = replies.map((r) => ({
+      ...r,
+      ticketId: r.ticket_id,
+      createdAt: r.created_at,
+    }));
     return ticket;
   }
 
-  async createSupportTicket(ticket: any): Promise<any> {
+  async createTicket(ticket: any): Promise<any> {
     const id = `TKT-${this.generateId().toUpperCase().substring(0, 6)}`;
     await pool.query(
       "INSERT INTO support_tickets (id, user_name, user_email, subject, message, status, priority) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -430,67 +492,131 @@ class MySQLStorage implements IStorage {
     return { id, ...ticket, replies: [] };
   }
 
-  async updateSupportTicket(id: string, ticket: any): Promise<any | null> {
-    const existing = await this.getSupportTicketById(id);
+  async updateTicketStatus(id: string, status: string): Promise<any | null> {
+    const existing = await this.getTicketById(id);
     if (!existing) return null;
-    await pool.query(
-      "UPDATE support_tickets SET status = ?, priority = ? WHERE id = ?",
-      [ticket.status, ticket.priority, id]
-    );
-    return { ...existing, ...ticket };
+    await pool.query("UPDATE support_tickets SET status = ? WHERE id = ?", [status, id]);
+    return { ...existing, status };
   }
 
-  async deleteSupportTicket(id: string): Promise<boolean> {
+  async addTicketReply(ticketId: string, reply: any): Promise<any> {
+    const id = this.generateId();
+    await pool.query(
+      "INSERT INTO ticket_replies (id, ticket_id, sender, message) VALUES (?, ?, ?, ?)",
+      [id, ticketId, reply.sender, reply.message]
+    );
+    return { id, ticketId, ...reply };
+  }
+
+  async deleteTicket(id: string): Promise<boolean> {
     const [result] = await pool.query<any>("DELETE FROM support_tickets WHERE id = ?", [id]);
     return result.affectedRows > 0;
   }
 
-  async getTicketReplies(ticketId: string): Promise<any[]> {
-    const [rows] = await pool.query<RowDataPacket[]>(
-      "SELECT * FROM ticket_replies WHERE ticket_id = ? ORDER BY created_at ASC",
-      [ticketId]
-    );
-    return rows.map((row) => ({
-      ...row,
-      ticketId: row.ticket_id,
-      createdAt: row.created_at,
-    }));
-  }
-
-  async createTicketReply(reply: any): Promise<any> {
-    const id = this.generateId();
-    await pool.query(
-      "INSERT INTO ticket_replies (id, ticket_id, sender, message) VALUES (?, ?, ?, ?)",
-      [id, reply.ticketId, reply.sender, reply.message]
-    );
-    return { id, ...reply };
-  }
-
-  async getPaymentSettings(): Promise<any | null> {
+  async getPaymentSettings(): Promise<any[]> {
     const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM payment_settings WHERE id = 1");
-    if (rows.length === 0) return null;
-    const row = rows[0];
-    return {
-      stripeEnabled: row.stripe_enabled,
-      paypalEnabled: row.paypal_enabled,
-      bankTransferEnabled: row.bank_transfer_enabled,
-      stripePublicKey: row.stripe_public_key,
-      stripeSecretKey: row.stripe_secret_key,
-      paypalClientId: row.paypal_client_id,
-      bankDetails: row.bank_details,
-    };
+    const row = rows.length > 0 ? rows[0] : null;
+    
+    return [
+      {
+        id: 1,
+        provider: 'stripe',
+        enabled: row ? !!row.stripe_enabled : false,
+        publishableKey: row?.stripe_public_key || "",
+        secretKey: row?.stripe_secret_key || "",
+      },
+      {
+        id: 2,
+        provider: 'paypal',
+        enabled: row ? !!row.paypal_enabled : false,
+        publishableKey: row?.paypal_client_id || "",
+        secretKey: "",
+      },
+      {
+        id: 3,
+        provider: 'bank_transfer',
+        enabled: row ? !!row.bank_transfer_enabled : false,
+        additionalConfig: row?.bank_details ? JSON.parse(row.bank_details) : {},
+      },
+    ];
   }
 
-  async updatePaymentSettings(settings: any): Promise<any> {
-    await pool.query(
-      `INSERT INTO payment_settings (id, stripe_enabled, paypal_enabled, bank_transfer_enabled, stripe_public_key, stripe_secret_key, paypal_client_id, bank_details)
-       VALUES (1, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE stripe_enabled = ?, paypal_enabled = ?, bank_transfer_enabled = ?, stripe_public_key = ?, stripe_secret_key = ?, paypal_client_id = ?, bank_details = ?`,
-      [
-        settings.stripeEnabled, settings.paypalEnabled, settings.bankTransferEnabled, settings.stripePublicKey, settings.stripeSecretKey, settings.paypalClientId, settings.bankDetails,
-        settings.stripeEnabled, settings.paypalEnabled, settings.bankTransferEnabled, settings.stripePublicKey, settings.stripeSecretKey, settings.paypalClientId, settings.bankDetails,
-      ]
-    );
+  async getPaymentSettingByProvider(provider: string): Promise<any | null> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM payment_settings WHERE id = 1");
+    if (rows.length === 0) {
+      return null;
+    }
+    const row = rows[0];
+    if (provider === "stripe") {
+      return {
+        enabled: !!row.stripe_enabled,
+        publicKey: row.stripe_public_key || "",
+        secretKey: row.stripe_secret_key || "",
+      };
+    } else if (provider === "paypal") {
+      return {
+        enabled: !!row.paypal_enabled,
+        clientId: row.paypal_client_id || "",
+      };
+    } else if (provider === "bankTransfer") {
+      return {
+        enabled: !!row.bank_transfer_enabled,
+        details: row.bank_details || "",
+      };
+    }
+    return null;
+  }
+
+  async updatePaymentSettings(provider: string, settings: any): Promise<any> {
+    const [existing] = await pool.query<RowDataPacket[]>("SELECT * FROM payment_settings WHERE id = 1");
+    
+    if (existing.length === 0) {
+      await pool.query("INSERT INTO payment_settings (id) VALUES (1)");
+    }
+    
+    const updates: string[] = [];
+    const values: any[] = [];
+    
+    if (provider === "stripe") {
+      if (settings.enabled !== undefined) {
+        updates.push("stripe_enabled = ?");
+        values.push(settings.enabled);
+      }
+      if (settings.publishableKey !== undefined) {
+        updates.push("stripe_public_key = ?");
+        values.push(settings.publishableKey);
+      }
+      if (settings.secretKey !== undefined) {
+        updates.push("stripe_secret_key = ?");
+        values.push(settings.secretKey);
+      }
+    } else if (provider === "paypal") {
+      if (settings.enabled !== undefined) {
+        updates.push("paypal_enabled = ?");
+        values.push(settings.enabled);
+      }
+      if (settings.publishableKey !== undefined) {
+        updates.push("paypal_client_id = ?");
+        values.push(settings.publishableKey);
+      }
+    } else if (provider === "bank_transfer" || provider === "bankTransfer") {
+      if (settings.enabled !== undefined) {
+        updates.push("bank_transfer_enabled = ?");
+        values.push(settings.enabled);
+      }
+      if (settings.additionalConfig !== undefined) {
+        updates.push("bank_details = ?");
+        values.push(JSON.stringify(settings.additionalConfig));
+      }
+    }
+    
+    if (updates.length > 0) {
+      await pool.query(
+        `UPDATE payment_settings SET ${updates.join(", ")} WHERE id = 1`,
+        values
+      );
+    }
+    
     return settings;
   }
 
@@ -502,14 +628,19 @@ class MySQLStorage implements IStorage {
     }));
   }
 
-  async createSubscriber(email: string): Promise<any> {
+  async createSubscriber(email: string, name?: string): Promise<any> {
     const id = this.generateId();
-    await pool.query("INSERT INTO subscribers (id, email) VALUES (?, ?)", [id, email]);
-    return { id, email };
+    await pool.query("INSERT INTO subscribers (id, email, name) VALUES (?, ?, ?)", [id, email, name || null]);
+    return { id, email, name };
   }
 
   async deleteSubscriber(id: string): Promise<boolean> {
     const [result] = await pool.query<any>("DELETE FROM subscribers WHERE id = ?", [id]);
+    return result.affectedRows > 0;
+  }
+
+  async unsubscribeSubscriber(email: string): Promise<boolean> {
+    const [result] = await pool.query<any>("DELETE FROM subscribers WHERE email = ?", [email]);
     return result.affectedRows > 0;
   }
 

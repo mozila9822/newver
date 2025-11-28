@@ -170,9 +170,17 @@ export async function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS subscribers (
         id VARCHAR(36) PRIMARY KEY,
         email VARCHAR(255) NOT NULL UNIQUE,
+        name VARCHAR(255),
         subscribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    
+    // Add name column if it doesn't exist (migration for existing tables)
+    try {
+      await connection.query("ALTER TABLE subscribers ADD COLUMN name VARCHAR(255)");
+    } catch (e) {
+      // Column already exists, ignore
+    }
 
     await connection.query(`
       CREATE TABLE IF NOT EXISTS email_templates (
