@@ -485,18 +485,24 @@ class MySQLStorage implements IStorage {
 
   async createTicket(ticket: any): Promise<any> {
     const id = `TKT-${this.generateId().toUpperCase().substring(0, 6)}`;
+    const statusMap: Record<string, string> = { open: "Open", "in progress": "In Progress", closed: "Closed" };
+    const priorityMap: Record<string, string> = { low: "Low", normal: "Medium", medium: "Medium", high: "High" };
+    const status = statusMap[(ticket.status || "open").toLowerCase()] || "Open";
+    const priority = priorityMap[(ticket.priority || "medium").toLowerCase()] || "Medium";
     await pool.query(
       "INSERT INTO support_tickets (id, user_name, user_email, subject, message, status, priority) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [id, ticket.userName, ticket.userEmail, ticket.subject, ticket.message, ticket.status || "open", ticket.priority || "normal"]
+      [id, ticket.userName, ticket.userEmail, ticket.subject, ticket.message, status, priority]
     );
-    return { id, ...ticket, replies: [] };
+    return { id, ...ticket, status, priority, replies: [] };
   }
 
   async updateTicketStatus(id: string, status: string): Promise<any | null> {
     const existing = await this.getTicketById(id);
     if (!existing) return null;
-    await pool.query("UPDATE support_tickets SET status = ? WHERE id = ?", [status, id]);
-    return { ...existing, status };
+    const statusMap: Record<string, string> = { open: "Open", "in progress": "In Progress", closed: "Closed" };
+    const mappedStatus = statusMap[status.toLowerCase()] || status;
+    await pool.query("UPDATE support_tickets SET status = ? WHERE id = ?", [mappedStatus, id]);
+    return { ...existing, status: mappedStatus };
   }
 
   async addTicketReply(ticketId: string, reply: any): Promise<any> {
