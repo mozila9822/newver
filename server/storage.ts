@@ -94,8 +94,8 @@ class MySQLStorage implements IStorage {
     const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM trips");
     return rows.map((row) => ({
       ...row,
-      features: typeof row.features === "string" ? JSON.parse(row.features) : row.features,
-      gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
+      features: row.features ? (typeof row.features === "string" ? JSON.parse(row.features) : row.features) : [],
+      gallery: row.gallery ? (typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery) : [],
       metaDescription: row.meta_description || "",
     }));
   }
@@ -106,8 +106,8 @@ class MySQLStorage implements IStorage {
     const row = rows[0];
     return {
       ...row,
-      features: typeof row.features === "string" ? JSON.parse(row.features) : row.features,
-      gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
+      features: row.features ? (typeof row.features === "string" ? JSON.parse(row.features) : row.features) : [],
+      gallery: row.gallery ? (typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery) : [],
       metaDescription: row.meta_description || "",
     };
   }
@@ -118,8 +118,8 @@ class MySQLStorage implements IStorage {
       if (generateSlug(row.title) === slug) {
         return {
           ...row,
-          features: typeof row.features === "string" ? JSON.parse(row.features) : row.features,
-          gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
+          features: row.features ? (typeof row.features === "string" ? JSON.parse(row.features) : row.features) : [],
+          gallery: row.gallery ? (typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery) : [],
           metaDescription: row.meta_description || "",
         };
       }
@@ -155,12 +155,12 @@ class MySQLStorage implements IStorage {
     const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM hotels ORDER BY sort_order ASC, id ASC");
     const hotels: any[] = rows.map((row) => ({
       ...row,
-      amenities: typeof row.amenities === "string" ? JSON.parse(row.amenities) : row.amenities,
-      gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
-      alwaysAvailable: row.always_available,
-      isActive: row.is_active,
-      availableFrom: row.available_from,
-      availableTo: row.available_to,
+      amenities: row.amenities ? (typeof row.amenities === "string" ? JSON.parse(row.amenities) : row.amenities) : [],
+      gallery: row.gallery ? (typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery) : [],
+      alwaysAvailable: row.always_available ?? true,
+      isActive: row.is_active ?? true,
+      availableFrom: row.available_from || null,
+      availableTo: row.available_to || null,
       stars: row.stars || 5,
       sortOrder: row.sort_order || 0,
       metaDescription: row.meta_description || "",
@@ -179,12 +179,12 @@ class MySQLStorage implements IStorage {
     const row = rows[0];
     const hotel: any = {
       ...row,
-      amenities: typeof row.amenities === "string" ? JSON.parse(row.amenities) : row.amenities,
-      gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
-      alwaysAvailable: row.always_available,
-      isActive: row.is_active,
-      availableFrom: row.available_from,
-      availableTo: row.available_to,
+      amenities: row.amenities ? (typeof row.amenities === "string" ? JSON.parse(row.amenities) : row.amenities) : [],
+      gallery: row.gallery ? (typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery) : [],
+      alwaysAvailable: row.always_available ?? true,
+      isActive: row.is_active ?? true,
+      availableFrom: row.available_from || null,
+      availableTo: row.available_to || null,
       stars: row.stars || 5,
       sortOrder: row.sort_order || 0,
       metaDescription: row.meta_description || "",
@@ -199,12 +199,12 @@ class MySQLStorage implements IStorage {
       if (generateSlug(row.title) === slug) {
         const hotel: any = {
           ...row,
-          amenities: typeof row.amenities === "string" ? JSON.parse(row.amenities) : row.amenities,
-          gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
-          alwaysAvailable: row.always_available,
-          isActive: row.is_active,
-          availableFrom: row.available_from,
-          availableTo: row.available_to,
+          amenities: row.amenities ? (typeof row.amenities === "string" ? JSON.parse(row.amenities) : row.amenities) : [],
+          gallery: row.gallery ? (typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery) : [],
+          alwaysAvailable: row.always_available ?? true,
+          isActive: row.is_active ?? true,
+          availableFrom: row.available_from || null,
+          availableTo: row.available_to || null,
           stars: row.stars || 5,
           sortOrder: row.sort_order || 0,
           metaDescription: row.meta_description || "",
@@ -275,8 +275,8 @@ class MySQLStorage implements IStorage {
     const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM cars");
     return rows.map((row) => ({
       ...row,
-      features: typeof row.features === "string" ? JSON.parse(row.features) : row.features,
-      gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
+      features: row.features ? (typeof row.features === "string" ? JSON.parse(row.features) : row.features) : [],
+      gallery: row.gallery ? (typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery) : [],
       metaDescription: row.meta_description || "",
     }));
   }
@@ -287,8 +287,8 @@ class MySQLStorage implements IStorage {
     const row = rows[0];
     return {
       ...row,
-      features: typeof row.features === "string" ? JSON.parse(row.features) : row.features,
-      gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
+      features: row.features ? (typeof row.features === "string" ? JSON.parse(row.features) : row.features) : [],
+      gallery: row.gallery ? (typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery) : [],
       metaDescription: row.meta_description || "",
     };
   }
@@ -299,8 +299,8 @@ class MySQLStorage implements IStorage {
       if (generateSlug(row.title) === slug) {
         return {
           ...row,
-          features: typeof row.features === "string" ? JSON.parse(row.features) : row.features,
-          gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
+          features: row.features ? (typeof row.features === "string" ? JSON.parse(row.features) : row.features) : [],
+          gallery: row.gallery ? (typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery) : [],
           metaDescription: row.meta_description || "",
         };
       }
@@ -338,7 +338,7 @@ class MySQLStorage implements IStorage {
       ...row,
       originalPrice: row.original_price,
       endsIn: row.ends_in,
-      gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
+      gallery: row.gallery ? (typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery) : [],
       metaDescription: row.meta_description || "",
     }));
   }
@@ -351,7 +351,7 @@ class MySQLStorage implements IStorage {
       ...row,
       originalPrice: row.original_price,
       endsIn: row.ends_in,
-      gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
+      gallery: row.gallery ? (typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery) : [],
       metaDescription: row.meta_description || "",
     };
   }
@@ -364,7 +364,7 @@ class MySQLStorage implements IStorage {
           ...row,
           originalPrice: row.original_price,
           endsIn: row.ends_in,
-          gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery || [],
+          gallery: row.gallery ? (typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery) : [],
           metaDescription: row.meta_description || "",
         };
       }
