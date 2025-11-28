@@ -25,6 +25,19 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/trips/slug/:slug", async (req, res) => {
+    try {
+      const trip = await storage.getTripBySlug(req.params.slug);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+      res.json(trip);
+    } catch (error) {
+      console.error("Error fetching trip by slug:", error);
+      res.status(500).json({ message: "Failed to fetch trip" });
+    }
+  });
+
   app.get("/api/trips/:id", async (req, res) => {
     try {
       const trip = await storage.getTripById(req.params.id);
@@ -82,6 +95,19 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching hotels:", error);
       res.status(500).json({ message: "Failed to fetch hotels" });
+    }
+  });
+
+  app.get("/api/hotels/slug/:slug", async (req, res) => {
+    try {
+      const hotel = await storage.getHotelBySlug(req.params.slug);
+      if (!hotel) {
+        return res.status(404).json({ message: "Hotel not found" });
+      }
+      res.json(hotel);
+    } catch (error) {
+      console.error("Error fetching hotel by slug:", error);
+      res.status(500).json({ message: "Failed to fetch hotel" });
     }
   });
 
@@ -195,6 +221,19 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/cars/slug/:slug", async (req, res) => {
+    try {
+      const car = await storage.getCarBySlug(req.params.slug);
+      if (!car) {
+        return res.status(404).json({ message: "Car not found" });
+      }
+      res.json(car);
+    } catch (error) {
+      console.error("Error fetching car by slug:", error);
+      res.status(500).json({ message: "Failed to fetch car" });
+    }
+  });
+
   app.get("/api/cars/:id", async (req, res) => {
     try {
       const car = await storage.getCarById(req.params.id);
@@ -252,6 +291,19 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching last minute offers:", error);
       res.status(500).json({ message: "Failed to fetch last minute offers" });
+    }
+  });
+
+  app.get("/api/last-minute-offers/slug/:slug", async (req, res) => {
+    try {
+      const offer = await storage.getLastMinuteOfferBySlug(req.params.slug);
+      if (!offer) {
+        return res.status(404).json({ message: "Offer not found" });
+      }
+      res.json(offer);
+    } catch (error) {
+      console.error("Error fetching offer by slug:", error);
+      res.status(500).json({ message: "Failed to fetch offer" });
     }
   });
 
