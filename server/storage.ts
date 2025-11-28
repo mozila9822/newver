@@ -874,6 +874,100 @@ class MySQLStorage implements IStorage {
     );
     return { id, ...user };
   }
+
+  async getSiteSettings(): Promise<any> {
+    try {
+      const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM site_settings WHERE id = 1");
+      if (rows.length === 0) {
+        return {
+          siteName: "Voyager Hub",
+          logoUrl: "",
+          tagline: "Luxury Travel Experiences",
+          seoTitle: "Voyager Hub | Luxury Travel Experiences",
+          seoDescription: "Curating exceptional journeys for the discerning traveler.",
+          seoKeywords: "luxury travel, exclusive trips, 5-star hotels",
+          contactEmail: "",
+          contactPhone: "",
+          contactAddress: "",
+          facebookUrl: "",
+          instagramUrl: "",
+          twitterUrl: "",
+          linkedinUrl: "",
+          youtubeUrl: "",
+          whatsappNumber: "",
+        };
+      }
+      const row = rows[0];
+      return {
+        siteName: row.site_name || "Voyager Hub",
+        logoUrl: row.logo_url || "",
+        tagline: row.tagline || "",
+        seoTitle: row.seo_title || "",
+        seoDescription: row.seo_description || "",
+        seoKeywords: row.seo_keywords || "",
+        contactEmail: row.contact_email || "",
+        contactPhone: row.contact_phone || "",
+        contactAddress: row.contact_address || "",
+        facebookUrl: row.facebook_url || "",
+        instagramUrl: row.instagram_url || "",
+        twitterUrl: row.twitter_url || "",
+        linkedinUrl: row.linkedin_url || "",
+        youtubeUrl: row.youtube_url || "",
+        whatsappNumber: row.whatsapp_number || "",
+      };
+    } catch (error) {
+      console.error("Error getting site settings:", error);
+      return {
+        siteName: "Voyager Hub",
+        logoUrl: "",
+        tagline: "Luxury Travel Experiences",
+        seoTitle: "Voyager Hub | Luxury Travel Experiences",
+        seoDescription: "Curating exceptional journeys for the discerning traveler.",
+        seoKeywords: "luxury travel, exclusive trips, 5-star hotels",
+        contactEmail: "",
+        contactPhone: "",
+        contactAddress: "",
+        facebookUrl: "",
+        instagramUrl: "",
+        twitterUrl: "",
+        linkedinUrl: "",
+        youtubeUrl: "",
+        whatsappNumber: "",
+      };
+    }
+  }
+
+  async updateSiteSettings(settings: any): Promise<any> {
+    await pool.query(
+      `INSERT INTO site_settings (id, site_name, logo_url, tagline, seo_title, seo_description, seo_keywords, 
+        contact_email, contact_phone, contact_address, facebook_url, instagram_url, twitter_url, linkedin_url, youtube_url, whatsapp_number)
+       VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE 
+        site_name = VALUES(site_name), logo_url = VALUES(logo_url), tagline = VALUES(tagline),
+        seo_title = VALUES(seo_title), seo_description = VALUES(seo_description), seo_keywords = VALUES(seo_keywords),
+        contact_email = VALUES(contact_email), contact_phone = VALUES(contact_phone), contact_address = VALUES(contact_address),
+        facebook_url = VALUES(facebook_url), instagram_url = VALUES(instagram_url), twitter_url = VALUES(twitter_url),
+        linkedin_url = VALUES(linkedin_url), youtube_url = VALUES(youtube_url), whatsapp_number = VALUES(whatsapp_number)`,
+      [
+        settings.siteName || "Voyager Hub",
+        settings.logoUrl || "",
+        settings.tagline || "",
+        settings.seoTitle || "",
+        settings.seoDescription || "",
+        settings.seoKeywords || "",
+        settings.contactEmail || "",
+        settings.contactPhone || "",
+        settings.contactAddress || "",
+        settings.facebookUrl || "",
+        settings.instagramUrl || "",
+        settings.twitterUrl || "",
+        settings.linkedinUrl || "",
+        settings.youtubeUrl || "",
+        settings.whatsappNumber || "",
+      ]
+    );
+    return settings;
+  }
 }
 
 export const storage = new MySQLStorage();

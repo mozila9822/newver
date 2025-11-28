@@ -306,6 +306,28 @@ export async function initializeDatabase() {
       )
     `);
 
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS site_settings (
+        id INT PRIMARY KEY DEFAULT 1,
+        site_name VARCHAR(255) DEFAULT 'Voyager Hub',
+        logo_url TEXT,
+        tagline VARCHAR(500),
+        seo_title VARCHAR(255),
+        seo_description TEXT,
+        seo_keywords TEXT,
+        contact_email VARCHAR(255),
+        contact_phone VARCHAR(50),
+        contact_address TEXT,
+        facebook_url VARCHAR(500),
+        instagram_url VARCHAR(500),
+        twitter_url VARCHAR(500),
+        linkedin_url VARCHAR(500),
+        youtube_url VARCHAR(500),
+        whatsapp_number VARCHAR(50),
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+
     console.log("✅ Database tables initialized");
   } finally {
     connection.release();
