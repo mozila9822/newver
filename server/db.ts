@@ -1,15 +1,202 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
-import * as schema from "@shared/schema";
+import mysql from "mysql2/promise";
 
-neonConfig.webSocketConstructor = ws;
+export const pool = mysql.createPool({
+  host: "mysql-200-131.mysql.prositehosting.net",
+  database: "ocidb_01Raay53dC",
+  user: "voyageruser12",
+  password: "19982206m.M",
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+});
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
+export async function testConnection() {
+  try {
+    const connection = await pool.getConnection();
+    console.log("✅ MySQL database connected successfully");
+    connection.release();
+    return true;
+  } catch (error) {
+    console.error("❌ MySQL connection error:", error);
+    throw error;
+  }
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle({ client: pool, schema });
+export async function initializeDatabase() {
+  const connection = await pool.getConnection();
+  try {
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id VARCHAR(36) PRIMARY KEY,
+        username VARCHAR(255) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL,
+        role VARCHAR(50) DEFAULT 'user'
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS trips (
+        id VARCHAR(36) PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        location VARCHAR(255) NOT NULL,
+        image TEXT,
+        price VARCHAR(50),
+        rating VARCHAR(10),
+        duration VARCHAR(50),
+        category VARCHAR(100),
+        features JSON
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS hotels (
+        id VARCHAR(36) PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        location VARCHAR(255) NOT NULL,
+        image TEXT,
+        price VARCHAR(50),
+        rating VARCHAR(10),
+        amenities JSON,
+        always_available BOOLEAN DEFAULT true,
+        is_active BOOLEAN DEFAULT true,
+        available_from VARCHAR(50),
+        available_to VARCHAR(50)
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS room_types (
+        id VARCHAR(36) PRIMARY KEY,
+        hotel_id VARCHAR(36) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        price VARCHAR(50),
+        description TEXT,
+        facilities JSON,
+        FOREIGN KEY (hotel_id) REFERENCES hotels(id) ON DELETE CASCADE
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS cars (
+        id VARCHAR(36) PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        location VARCHAR(255) NOT NULL,
+        image TEXT,
+        price VARCHAR(50),
+        rating VARCHAR(10),
+        specs VARCHAR(255),
+        features JSON
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS last_minute_offers (
+        id VARCHAR(36) PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        location VARCHAR(255) NOT NULL,
+        image TEXT,
+        price VARCHAR(50),
+        original_price VARCHAR(50),
+        rating VARCHAR(10),
+        ends_in VARCHAR(50),
+        discount VARCHAR(50)
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS bookings (
+        id VARCHAR(36) PRIMARY KEY,
+        customer VARCHAR(255) NOT NULL,
+        item VARCHAR(255) NOT NULL,
+        date VARCHAR(50),
+        status VARCHAR(50),
+        amount VARCHAR(50)
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS reviews (
+        id VARCHAR(36) PRIMARY KEY,
+        item_id VARCHAR(36) NOT NULL,
+        item_type VARCHAR(50) NOT NULL,
+        item_title VARCHAR(255),
+        user_name VARCHAR(255) NOT NULL,
+        user_email VARCHAR(255),
+        rating INT NOT NULL,
+        comment TEXT,
+        status VARCHAR(50) DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS support_tickets (
+        id VARCHAR(36) PRIMARY KEY,
+        user_name VARCHAR(255) NOT NULL,
+        user_email VARCHAR(255) NOT NULL,
+        subject VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        status VARCHAR(50) DEFAULT 'open',
+        priority VARCHAR(50) DEFAULT 'normal',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS ticket_replies (
+        id VARCHAR(36) PRIMARY KEY,
+        ticket_id VARCHAR(36) NOT NULL,
+        sender VARCHAR(50) NOT NULL,
+        message TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (ticket_id) REFERENCES support_tickets(id) ON DELETE CASCADE
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS payment_settings (
+        id INT PRIMARY KEY DEFAULT 1,
+        stripe_enabled BOOLEAN DEFAULT false,
+        paypal_enabled BOOLEAN DEFAULT false,
+        bank_transfer_enabled BOOLEAN DEFAULT false,
+        stripe_public_key TEXT,
+        stripe_secret_key TEXT,
+        paypal_client_id TEXT,
+        bank_details TEXT
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS subscribers (
+        id VARCHAR(36) PRIMARY KEY,
+        email VARCHAR(255) NOT NULL UNIQUE,
+        subscribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS email_templates (
+        id VARCHAR(36) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        subject VARCHAR(255) NOT NULL,
+        body TEXT NOT NULL
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS email_settings (
+        id INT PRIMARY KEY DEFAULT 1,
+        smtp_host VARCHAR(255),
+        smtp_port INT,
+        smtp_user VARCHAR(255),
+        smtp_password VARCHAR(255),
+        from_email VARCHAR(255),
+        from_name VARCHAR(255)
+      )
+    `);
+
+    console.log("✅ Database tables initialized");
+  } finally {
+    connection.release();
+  }
+}

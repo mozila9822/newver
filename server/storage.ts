@@ -1,1213 +1,592 @@
-import { db } from "./db";
-import { randomUUID } from "crypto";
-import { eq, and, desc, sql } from "drizzle-orm";
-import { 
-  users, 
-  trips, 
-  hotels, 
-  roomTypes,
-  cars, 
-  lastMinuteOffers, 
-  bookings, 
-  reviews, 
-  supportTickets,
-  ticketReplies,
-  paymentSettings,
-  subscribers,
-  emailTemplates,
-  emailSettings
-} from "@shared/schema";
-
-export interface User {
-  id: string;
-  username: string;
-  password: string;
-}
-
-export interface InsertUser {
-  username: string;
-  password: string;
-}
-
-export interface Trip {
-  id: string;
-  title: string;
-  location: string;
-  image: string;
-  price: string;
-  rating: number;
-  duration: string;
-  category: string;
-  features: string[];
-}
-
-export interface RoomType {
-  id: string;
-  name: string;
-  price: string;
-  description: string;
-  facilities: string[];
-}
-
-export interface Hotel {
-  id: string;
-  title: string;
-  location: string;
-  image: string;
-  price: string;
-  rating: number;
-  amenities: string[];
-  alwaysAvailable: boolean;
-  isActive: boolean;
-  availableFrom?: string;
-  availableTo?: string;
-  roomTypes?: RoomType[];
-}
-
-export interface Car {
-  id: string;
-  title: string;
-  location: string;
-  image: string;
-  price: string;
-  rating: number;
-  specs: string;
-  features: string[];
-}
-
-export interface LastMinuteOffer {
-  id: string;
-  title: string;
-  location: string;
-  image: string;
-  price: string;
-  originalPrice: string;
-  rating: number;
-  endsIn: string;
-  discount: string;
-}
-
-export interface Booking {
-  id: string;
-  customer: string;
-  item: string;
-  date: string;
-  status: 'Confirmed' | 'Pending' | 'Cancelled';
-  amount: string;
-}
-
-export interface Review {
-  id: string;
-  itemId: string;
-  itemType: 'trip' | 'hotel' | 'car' | 'offer';
-  itemTitle: string;
-  userName: string;
-  userEmail?: string;
-  rating: number;
-  comment: string;
-  status: 'pending' | 'approved' | 'rejected';
-  createdAt?: string;
-}
-
-export interface TicketReply {
-  id: string;
-  sender: 'user' | 'support';
-  message: string;
-  date: string;
-}
-
-export interface SupportTicket {
-  id: string;
-  subject: string;
-  status: 'Open' | 'In Progress' | 'Closed';
-  date: string;
-  priority: 'Low' | 'Medium' | 'High';
-  userEmail: string;
-  replies: TicketReply[];
-}
-
-export interface PaymentSettings {
-  id: string;
-  provider: string;
-  enabled: boolean;
-  secretKey: string;
-  publishableKey: string;
-  webhookSecret?: string;
-  additionalConfig?: Record<string, any>;
-}
-
-export interface Subscriber {
-  id: string;
-  email: string;
-  name?: string;
-  subscribedAt: string;
-  status: 'active' | 'unsubscribed';
-}
-
-export interface EmailTemplate {
-  id: string;
-  name: string;
-  subject: string;
-  body: string;
-  variables?: string[];
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface EmailSettings {
-  id: string;
-  enabled: boolean;
-  host?: string;
-  port?: number;
-  secure?: boolean;
-  username?: string;
-  password?: string;
-  fromEmail?: string;
-  fromName?: string;
-}
+import { pool } from "./db";
+import { RowDataPacket } from "mysql2/promise";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  
-  getTrips(): Promise<Trip[]>;
-  getTripById(id: string): Promise<Trip | undefined>;
-  createTrip(trip: Omit<Trip, 'id'>): Promise<Trip>;
-  updateTrip(id: string, trip: Partial<Trip>): Promise<Trip | undefined>;
+  getTrips(): Promise<any[]>;
+  getTripById(id: string): Promise<any | null>;
+  createTrip(trip: any): Promise<any>;
+  updateTrip(id: string, trip: any): Promise<any | null>;
   deleteTrip(id: string): Promise<boolean>;
-  
-  getHotels(): Promise<Hotel[]>;
-  getHotelById(id: string): Promise<Hotel | undefined>;
-  createHotel(hotel: Omit<Hotel, 'id'>): Promise<Hotel>;
-  updateHotel(id: string, hotel: Partial<Hotel>): Promise<Hotel | undefined>;
+
+  getHotels(): Promise<any[]>;
+  getHotelById(id: string): Promise<any | null>;
+  createHotel(hotel: any): Promise<any>;
+  updateHotel(id: string, hotel: any): Promise<any | null>;
   deleteHotel(id: string): Promise<boolean>;
-  
-  getCars(): Promise<Car[]>;
-  getCarById(id: string): Promise<Car | undefined>;
-  createCar(car: Omit<Car, 'id'>): Promise<Car>;
-  updateCar(id: string, car: Partial<Car>): Promise<Car | undefined>;
+
+  getRoomTypes(hotelId: string): Promise<any[]>;
+  createRoomType(roomType: any): Promise<any>;
+  updateRoomType(id: string, roomType: any): Promise<any | null>;
+  deleteRoomType(id: string): Promise<boolean>;
+
+  getCars(): Promise<any[]>;
+  getCarById(id: string): Promise<any | null>;
+  createCar(car: any): Promise<any>;
+  updateCar(id: string, car: any): Promise<any | null>;
   deleteCar(id: string): Promise<boolean>;
-  
-  getLastMinuteOffers(): Promise<LastMinuteOffer[]>;
-  createOffer(offer: Omit<LastMinuteOffer, 'id'>): Promise<LastMinuteOffer>;
-  updateOffer(id: string, offer: Partial<LastMinuteOffer>): Promise<LastMinuteOffer | undefined>;
-  deleteOffer(id: string): Promise<boolean>;
-  
-  getBookings(): Promise<Booking[]>;
-  createBooking(booking: Omit<Booking, 'id'>): Promise<Booking>;
-  updateBooking(id: string, booking: Partial<Booking>): Promise<Booking | undefined>;
+
+  getLastMinuteOffers(): Promise<any[]>;
+  getLastMinuteOfferById(id: string): Promise<any | null>;
+  createLastMinuteOffer(offer: any): Promise<any>;
+  updateLastMinuteOffer(id: string, offer: any): Promise<any | null>;
+  deleteLastMinuteOffer(id: string): Promise<boolean>;
+
+  getBookings(): Promise<any[]>;
+  getBookingById(id: string): Promise<any | null>;
+  createBooking(booking: any): Promise<any>;
+  updateBooking(id: string, booking: any): Promise<any | null>;
   deleteBooking(id: string): Promise<boolean>;
-  
-  getReviews(): Promise<Review[]>;
-  getReviewsByItem(itemId: string, itemType: string): Promise<Review[]>;
-  getApprovedReviewsByItem(itemId: string, itemType: string): Promise<Review[]>;
-  createReview(review: Omit<Review, 'id' | 'createdAt'>): Promise<Review>;
-  updateReview(id: string, review: Partial<Omit<Review, 'id' | 'createdAt'>>): Promise<Review | undefined>;
-  updateReviewStatus(id: string, status: 'approved' | 'rejected'): Promise<Review | undefined>;
+
+  getReviews(): Promise<any[]>;
+  getReviewsByItem(itemId: string, itemType: string): Promise<any[]>;
+  getReviewById(id: string): Promise<any | null>;
+  createReview(review: any): Promise<any>;
+  updateReview(id: string, review: any): Promise<any | null>;
   deleteReview(id: string): Promise<boolean>;
-  
-  getTickets(): Promise<SupportTicket[]>;
-  getTicketsByUser(userEmail: string): Promise<SupportTicket[]>;
-  getTicketById(id: string): Promise<SupportTicket | undefined>;
-  createTicket(ticket: Omit<SupportTicket, 'id' | 'date' | 'replies' | 'status'>): Promise<SupportTicket>;
-  updateTicketStatus(id: string, status: 'Open' | 'In Progress' | 'Closed'): Promise<SupportTicket | undefined>;
-  addTicketReply(ticketId: string, reply: Omit<TicketReply, 'id' | 'date'>): Promise<TicketReply>;
-  deleteTicket(id: string): Promise<boolean>;
-  
-  getPaymentSettings(): Promise<PaymentSettings[]>;
-  getPaymentSettingByProvider(provider: string): Promise<PaymentSettings | undefined>;
-  updatePaymentSettings(provider: string, settings: Partial<PaymentSettings>): Promise<PaymentSettings | undefined>;
-  
-  getSubscribers(): Promise<Subscriber[]>;
-  getSubscriberByEmail(email: string): Promise<Subscriber | undefined>;
-  getSubscriberById(id: string): Promise<Subscriber | undefined>;
-  createSubscriber(email: string, name?: string): Promise<Subscriber>;
+
+  getSupportTickets(): Promise<any[]>;
+  getSupportTicketById(id: string): Promise<any | null>;
+  createSupportTicket(ticket: any): Promise<any>;
+  updateSupportTicket(id: string, ticket: any): Promise<any | null>;
+  deleteSupportTicket(id: string): Promise<boolean>;
+
+  getTicketReplies(ticketId: string): Promise<any[]>;
+  createTicketReply(reply: any): Promise<any>;
+
+  getPaymentSettings(): Promise<any | null>;
+  updatePaymentSettings(settings: any): Promise<any>;
+
+  getSubscribers(): Promise<any[]>;
+  createSubscriber(email: string): Promise<any>;
   deleteSubscriber(id: string): Promise<boolean>;
-  unsubscribeSubscriber(email: string): Promise<boolean>;
-  
-  getEmailTemplates(): Promise<EmailTemplate[]>;
-  getEmailTemplateById(id: string): Promise<EmailTemplate | undefined>;
-  createEmailTemplate(template: Omit<EmailTemplate, 'id' | 'createdAt' | 'updatedAt'>): Promise<EmailTemplate>;
-  updateEmailTemplate(id: string, template: Partial<Omit<EmailTemplate, 'id' | 'createdAt' | 'updatedAt'>>): Promise<EmailTemplate | undefined>;
+
+  getEmailTemplates(): Promise<any[]>;
+  getEmailTemplateById(id: string): Promise<any | null>;
+  createEmailTemplate(template: any): Promise<any>;
+  updateEmailTemplate(id: string, template: any): Promise<any | null>;
   deleteEmailTemplate(id: string): Promise<boolean>;
-  
-  getEmailSettings(): Promise<EmailSettings | undefined>;
-  updateEmailSettings(settings: Partial<Omit<EmailSettings, 'id'>>): Promise<EmailSettings | undefined>;
+
+  getEmailSettings(): Promise<any | null>;
+  updateEmailSettings(settings: any): Promise<any>;
+
+  getUserByUsername(username: string): Promise<any | null>;
+  createUser(user: any): Promise<any>;
 }
 
-export class DatabaseStorage implements IStorage {
-  async getUser(id: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.id, id));
-    return result[0] || undefined;
+class MySQLStorage implements IStorage {
+  private generateId(): string {
+    return Math.random().toString(36).substring(2, 15);
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.username, username));
-    return result[0] || undefined;
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const [user] = await db.insert(users).values({ id, ...insertUser }).returning();
-    return user;
-  }
-
-  async getTrips(): Promise<Trip[]> {
-    const result = await db.select().from(trips);
-    return result.map(row => ({
-      id: row.id,
-      title: row.title,
-      location: row.location,
-      image: row.image,
-      price: row.price,
-      rating: parseFloat(row.rating),
-      duration: row.duration,
-      category: row.category,
-      features: row.features as string[]
+  async getTrips(): Promise<any[]> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM trips");
+    return rows.map((row) => ({
+      ...row,
+      features: typeof row.features === "string" ? JSON.parse(row.features) : row.features,
     }));
   }
 
-  async getTripById(id: string): Promise<Trip | undefined> {
-    const result = await db.select().from(trips).where(eq(trips.id, id));
-    if (result.length === 0) return undefined;
-    const row = result[0];
+  async getTripById(id: string): Promise<any | null> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM trips WHERE id = ?", [id]);
+    if (rows.length === 0) return null;
+    const row = rows[0];
     return {
-      id: row.id,
-      title: row.title,
-      location: row.location,
-      image: row.image,
-      price: row.price,
-      rating: parseFloat(row.rating),
-      duration: row.duration,
-      category: row.category,
-      features: row.features as string[]
+      ...row,
+      features: typeof row.features === "string" ? JSON.parse(row.features) : row.features,
     };
   }
 
-  async createTrip(trip: Omit<Trip, 'id'>): Promise<Trip> {
-    const id = `t${Date.now()}`;
-    await db.insert(trips).values({
-      id,
-      title: trip.title,
-      location: trip.location,
-      image: trip.image,
-      price: trip.price,
-      rating: trip.rating.toString(),
-      duration: trip.duration,
-      category: trip.category,
-      features: trip.features
-    });
+  async createTrip(trip: any): Promise<any> {
+    const id = this.generateId();
+    await pool.query(
+      "INSERT INTO trips (id, title, location, image, price, rating, duration, category, features) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [id, trip.title, trip.location, trip.image, trip.price, trip.rating, trip.duration, trip.category, JSON.stringify(trip.features || [])]
+    );
     return { id, ...trip };
   }
 
-  async updateTrip(id: string, trip: Partial<Trip>): Promise<Trip | undefined> {
+  async updateTrip(id: string, trip: any): Promise<any | null> {
     const existing = await this.getTripById(id);
-    if (!existing) return undefined;
-
-    const updated = { ...existing, ...trip };
-    await db.update(trips)
-      .set({
-        title: updated.title,
-        location: updated.location,
-        image: updated.image,
-        price: updated.price,
-        rating: updated.rating.toString(),
-        duration: updated.duration,
-        category: updated.category,
-        features: updated.features
-      })
-      .where(eq(trips.id, id));
-    return updated;
+    if (!existing) return null;
+    await pool.query(
+      "UPDATE trips SET title = ?, location = ?, image = ?, price = ?, rating = ?, duration = ?, category = ?, features = ? WHERE id = ?",
+      [trip.title, trip.location, trip.image, trip.price, trip.rating, trip.duration, trip.category, JSON.stringify(trip.features || []), id]
+    );
+    return { id, ...trip };
   }
 
   async deleteTrip(id: string): Promise<boolean> {
-    const result = await db.delete(trips).where(eq(trips.id, id));
-    return result.rowCount !== null && result.rowCount > 0;
+    const [result] = await pool.query<any>("DELETE FROM trips WHERE id = ?", [id]);
+    return result.affectedRows > 0;
   }
 
-  async getHotels(): Promise<Hotel[]> {
-    const result = await db.query.hotels.findMany({
-      with: {
-        roomTypes: true
-      }
-    });
-    
-    return result.map(hotel => ({
-      id: hotel.id,
-      title: hotel.title,
-      location: hotel.location,
-      image: hotel.image,
-      price: hotel.price,
-      rating: parseFloat(hotel.rating),
-      amenities: hotel.amenities as string[],
-      alwaysAvailable: hotel.alwaysAvailable ?? true,
-      isActive: hotel.isActive ?? true,
-      availableFrom: hotel.availableFrom || undefined,
-      availableTo: hotel.availableTo || undefined,
-      roomTypes: hotel.roomTypes.length > 0 ? hotel.roomTypes.map(rt => ({
-        id: rt.id,
-        name: rt.name,
-        price: rt.price,
-        description: rt.description || '',
-        facilities: rt.facilities as string[]
-      })) : undefined
+  async getHotels(): Promise<any[]> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM hotels");
+    const hotels = rows.map((row) => ({
+      ...row,
+      amenities: typeof row.amenities === "string" ? JSON.parse(row.amenities) : row.amenities,
+      alwaysAvailable: row.always_available,
+      isActive: row.is_active,
+      availableFrom: row.available_from,
+      availableTo: row.available_to,
     }));
-  }
 
-  async getHotelById(id: string): Promise<Hotel | undefined> {
-    const result = await db.query.hotels.findFirst({
-      where: eq(hotels.id, id),
-      with: {
-        roomTypes: true
-      }
-    });
-    
-    if (!result) return undefined;
-    
-    return {
-      id: result.id,
-      title: result.title,
-      location: result.location,
-      image: result.image,
-      price: result.price,
-      rating: parseFloat(result.rating),
-      amenities: result.amenities as string[],
-      alwaysAvailable: result.alwaysAvailable ?? true,
-      isActive: result.isActive ?? true,
-      availableFrom: result.availableFrom || undefined,
-      availableTo: result.availableTo || undefined,
-      roomTypes: result.roomTypes.length > 0 ? result.roomTypes.map(rt => ({
-        id: rt.id,
-        name: rt.name,
-        price: rt.price,
-        description: rt.description || '',
-        facilities: rt.facilities as string[]
-      })) : undefined
-    };
-  }
-
-  async createHotel(hotel: Omit<Hotel, 'id'>): Promise<Hotel> {
-    const id = `h${Date.now()}`;
-    await db.insert(hotels).values({
-      id,
-      title: hotel.title,
-      location: hotel.location,
-      image: hotel.image,
-      price: hotel.price,
-      rating: hotel.rating.toString(),
-      amenities: hotel.amenities,
-      alwaysAvailable: hotel.alwaysAvailable,
-      isActive: hotel.isActive,
-      availableFrom: hotel.availableFrom || null,
-      availableTo: hotel.availableTo || null
-    });
-
-    if (hotel.roomTypes && hotel.roomTypes.length > 0) {
-      for (const room of hotel.roomTypes) {
-        const roomId = room.id || `rt${Date.now()}${Math.random().toString(36).substr(2, 5)}`;
-        await db.insert(roomTypes).values({
-          id: roomId,
-          hotelId: id,
-          name: room.name,
-          price: room.price,
-          description: room.description || '',
-          facilities: room.facilities
-        });
-      }
+    for (const hotel of hotels) {
+      hotel.roomTypes = await this.getRoomTypes(hotel.id);
     }
 
+    return hotels;
+  }
+
+  async getHotelById(id: string): Promise<any | null> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM hotels WHERE id = ?", [id]);
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    const hotel = {
+      ...row,
+      amenities: typeof row.amenities === "string" ? JSON.parse(row.amenities) : row.amenities,
+      alwaysAvailable: row.always_available,
+      isActive: row.is_active,
+      availableFrom: row.available_from,
+      availableTo: row.available_to,
+    };
+    hotel.roomTypes = await this.getRoomTypes(id);
+    return hotel;
+  }
+
+  async createHotel(hotel: any): Promise<any> {
+    const id = this.generateId();
+    await pool.query(
+      "INSERT INTO hotels (id, title, location, image, price, rating, amenities, always_available, is_active, available_from, available_to) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [id, hotel.title, hotel.location, hotel.image, hotel.price, hotel.rating, JSON.stringify(hotel.amenities || []), hotel.alwaysAvailable ?? true, hotel.isActive ?? true, hotel.availableFrom, hotel.availableTo]
+    );
+    return { id, ...hotel, roomTypes: [] };
+  }
+
+  async updateHotel(id: string, hotel: any): Promise<any | null> {
+    const existing = await this.getHotelById(id);
+    if (!existing) return null;
+    await pool.query(
+      "UPDATE hotels SET title = ?, location = ?, image = ?, price = ?, rating = ?, amenities = ?, always_available = ?, is_active = ?, available_from = ?, available_to = ? WHERE id = ?",
+      [hotel.title, hotel.location, hotel.image, hotel.price, hotel.rating, JSON.stringify(hotel.amenities || []), hotel.alwaysAvailable ?? true, hotel.isActive ?? true, hotel.availableFrom, hotel.availableTo, id]
+    );
     return { id, ...hotel };
   }
 
-  async updateHotel(id: string, hotel: Partial<Hotel>): Promise<Hotel | undefined> {
-    const existing = await this.getHotelById(id);
-    if (!existing) return undefined;
-
-    const updated = { ...existing, ...hotel };
-    await db.update(hotels)
-      .set({
-        title: updated.title,
-        location: updated.location,
-        image: updated.image,
-        price: updated.price,
-        rating: updated.rating.toString(),
-        amenities: updated.amenities,
-        alwaysAvailable: updated.alwaysAvailable,
-        isActive: updated.isActive,
-        availableFrom: updated.availableFrom || null,
-        availableTo: updated.availableTo || null
-      })
-      .where(eq(hotels.id, id));
-
-    if (hotel.roomTypes !== undefined) {
-      await db.delete(roomTypes).where(eq(roomTypes.hotelId, id));
-      
-      if (hotel.roomTypes && hotel.roomTypes.length > 0) {
-        for (const room of hotel.roomTypes) {
-          const roomId = room.id || `rt${Date.now()}${Math.random().toString(36).substr(2, 5)}`;
-          await db.insert(roomTypes).values({
-            id: roomId,
-            hotelId: id,
-            name: room.name,
-            price: room.price,
-            description: room.description || '',
-            facilities: room.facilities
-          });
-        }
-      }
-    }
-
-    return this.getHotelById(id);
-  }
-
   async deleteHotel(id: string): Promise<boolean> {
-    const result = await db.delete(hotels).where(eq(hotels.id, id));
-    return result.rowCount !== null && result.rowCount > 0;
+    const [result] = await pool.query<any>("DELETE FROM hotels WHERE id = ?", [id]);
+    return result.affectedRows > 0;
   }
 
-  async getCars(): Promise<Car[]> {
-    const result = await db.select().from(cars);
-    return result.map(row => ({
-      id: row.id,
-      title: row.title,
-      location: row.location,
-      image: row.image,
-      price: row.price,
-      rating: parseFloat(row.rating),
-      specs: row.specs,
-      features: row.features as string[]
+  async getRoomTypes(hotelId: string): Promise<any[]> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM room_types WHERE hotel_id = ?", [hotelId]);
+    return rows.map((row) => ({
+      ...row,
+      hotelId: row.hotel_id,
+      facilities: typeof row.facilities === "string" ? JSON.parse(row.facilities) : row.facilities,
     }));
   }
 
-  async getCarById(id: string): Promise<Car | undefined> {
-    const result = await db.select().from(cars).where(eq(cars.id, id));
-    if (result.length === 0) return undefined;
-    const row = result[0];
+  async createRoomType(roomType: any): Promise<any> {
+    const id = this.generateId();
+    await pool.query(
+      "INSERT INTO room_types (id, hotel_id, name, price, description, facilities) VALUES (?, ?, ?, ?, ?, ?)",
+      [id, roomType.hotelId, roomType.name, roomType.price, roomType.description, JSON.stringify(roomType.facilities || [])]
+    );
+    return { id, ...roomType };
+  }
+
+  async updateRoomType(id: string, roomType: any): Promise<any | null> {
+    await pool.query(
+      "UPDATE room_types SET name = ?, price = ?, description = ?, facilities = ? WHERE id = ?",
+      [roomType.name, roomType.price, roomType.description, JSON.stringify(roomType.facilities || []), id]
+    );
+    return { id, ...roomType };
+  }
+
+  async deleteRoomType(id: string): Promise<boolean> {
+    const [result] = await pool.query<any>("DELETE FROM room_types WHERE id = ?", [id]);
+    return result.affectedRows > 0;
+  }
+
+  async getCars(): Promise<any[]> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM cars");
+    return rows.map((row) => ({
+      ...row,
+      features: typeof row.features === "string" ? JSON.parse(row.features) : row.features,
+    }));
+  }
+
+  async getCarById(id: string): Promise<any | null> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM cars WHERE id = ?", [id]);
+    if (rows.length === 0) return null;
+    const row = rows[0];
     return {
-      id: row.id,
-      title: row.title,
-      location: row.location,
-      image: row.image,
-      price: row.price,
-      rating: parseFloat(row.rating),
-      specs: row.specs,
-      features: row.features as string[]
+      ...row,
+      features: typeof row.features === "string" ? JSON.parse(row.features) : row.features,
     };
   }
 
-  async createCar(car: Omit<Car, 'id'>): Promise<Car> {
-    const id = `c${Date.now()}`;
-    await db.insert(cars).values({
-      id,
-      title: car.title,
-      location: car.location,
-      image: car.image,
-      price: car.price,
-      rating: car.rating.toString(),
-      specs: car.specs,
-      features: car.features
-    });
+  async createCar(car: any): Promise<any> {
+    const id = this.generateId();
+    await pool.query(
+      "INSERT INTO cars (id, title, location, image, price, rating, specs, features) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [id, car.title, car.location, car.image, car.price, car.rating, car.specs, JSON.stringify(car.features || [])]
+    );
     return { id, ...car };
   }
 
-  async updateCar(id: string, car: Partial<Car>): Promise<Car | undefined> {
+  async updateCar(id: string, car: any): Promise<any | null> {
     const existing = await this.getCarById(id);
-    if (!existing) return undefined;
-
-    const updated = { ...existing, ...car };
-    await db.update(cars)
-      .set({
-        title: updated.title,
-        location: updated.location,
-        image: updated.image,
-        price: updated.price,
-        rating: updated.rating.toString(),
-        specs: updated.specs,
-        features: updated.features
-      })
-      .where(eq(cars.id, id));
-    return updated;
+    if (!existing) return null;
+    await pool.query(
+      "UPDATE cars SET title = ?, location = ?, image = ?, price = ?, rating = ?, specs = ?, features = ? WHERE id = ?",
+      [car.title, car.location, car.image, car.price, car.rating, car.specs, JSON.stringify(car.features || []), id]
+    );
+    return { id, ...car };
   }
 
   async deleteCar(id: string): Promise<boolean> {
-    const result = await db.delete(cars).where(eq(cars.id, id));
-    return result.rowCount !== null && result.rowCount > 0;
+    const [result] = await pool.query<any>("DELETE FROM cars WHERE id = ?", [id]);
+    return result.affectedRows > 0;
   }
 
-  async getLastMinuteOffers(): Promise<LastMinuteOffer[]> {
-    const result = await db.select().from(lastMinuteOffers);
-    return result.map(row => ({
-      id: row.id,
-      title: row.title,
-      location: row.location,
-      image: row.image,
-      price: row.price,
-      originalPrice: row.originalPrice,
-      rating: parseFloat(row.rating),
-      endsIn: row.endsIn,
-      discount: row.discount
+  async getLastMinuteOffers(): Promise<any[]> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM last_minute_offers");
+    return rows.map((row) => ({
+      ...row,
+      originalPrice: row.original_price,
+      endsIn: row.ends_in,
     }));
   }
 
-  async createOffer(offer: Omit<LastMinuteOffer, 'id'>): Promise<LastMinuteOffer> {
-    const id = `lm${Date.now()}`;
-    await db.insert(lastMinuteOffers).values({
-      id,
-      title: offer.title,
-      location: offer.location,
-      image: offer.image,
-      price: offer.price,
-      originalPrice: offer.originalPrice,
-      rating: offer.rating.toString(),
-      endsIn: offer.endsIn,
-      discount: offer.discount
-    });
+  async getLastMinuteOfferById(id: string): Promise<any | null> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM last_minute_offers WHERE id = ?", [id]);
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    return {
+      ...row,
+      originalPrice: row.original_price,
+      endsIn: row.ends_in,
+    };
+  }
+
+  async createLastMinuteOffer(offer: any): Promise<any> {
+    const id = this.generateId();
+    await pool.query(
+      "INSERT INTO last_minute_offers (id, title, location, image, price, original_price, rating, ends_in, discount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [id, offer.title, offer.location, offer.image, offer.price, offer.originalPrice, offer.rating, offer.endsIn, offer.discount]
+    );
     return { id, ...offer };
   }
 
-  async updateOffer(id: string, offer: Partial<LastMinuteOffer>): Promise<LastMinuteOffer | undefined> {
-    const result = await db.select().from(lastMinuteOffers).where(eq(lastMinuteOffers.id, id));
-    if (result.length === 0) return undefined;
-    
-    const existing = result[0];
-    const updated = {
-      id: existing.id,
-      title: offer.title ?? existing.title,
-      location: offer.location ?? existing.location,
-      image: offer.image ?? existing.image,
-      price: offer.price ?? existing.price,
-      originalPrice: offer.originalPrice ?? existing.originalPrice,
-      rating: offer.rating ?? parseFloat(existing.rating),
-      endsIn: offer.endsIn ?? existing.endsIn,
-      discount: offer.discount ?? existing.discount
-    };
-
-    await db.update(lastMinuteOffers)
-      .set({
-        title: updated.title,
-        location: updated.location,
-        image: updated.image,
-        price: updated.price,
-        originalPrice: updated.originalPrice,
-        rating: updated.rating.toString(),
-        endsIn: updated.endsIn,
-        discount: updated.discount
-      })
-      .where(eq(lastMinuteOffers.id, id));
-    return updated;
+  async updateLastMinuteOffer(id: string, offer: any): Promise<any | null> {
+    const existing = await this.getLastMinuteOfferById(id);
+    if (!existing) return null;
+    await pool.query(
+      "UPDATE last_minute_offers SET title = ?, location = ?, image = ?, price = ?, original_price = ?, rating = ?, ends_in = ?, discount = ? WHERE id = ?",
+      [offer.title, offer.location, offer.image, offer.price, offer.originalPrice, offer.rating, offer.endsIn, offer.discount, id]
+    );
+    return { id, ...offer };
   }
 
-  async deleteOffer(id: string): Promise<boolean> {
-    const result = await db.delete(lastMinuteOffers).where(eq(lastMinuteOffers.id, id));
-    return result.rowCount !== null && result.rowCount > 0;
+  async deleteLastMinuteOffer(id: string): Promise<boolean> {
+    const [result] = await pool.query<any>("DELETE FROM last_minute_offers WHERE id = ?", [id]);
+    return result.affectedRows > 0;
   }
 
-  async getBookings(): Promise<Booking[]> {
-    const result = await db.select().from(bookings);
-    return result.map(row => ({
-      id: row.id,
-      customer: row.customer,
-      item: row.item,
-      date: row.date,
-      status: row.status,
-      amount: row.amount
-    }));
+  async getBookings(): Promise<any[]> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM bookings");
+    return rows as any[];
   }
 
-  async createBooking(booking: Omit<Booking, 'id'> & { payment_intent_id?: string }): Promise<Booking> {
-    const id = `BKG-${Date.now()}`;
-    await db.insert(bookings).values({
-      id,
-      customer: booking.customer,
-      item: booking.item,
-      date: booking.date,
-      status: booking.status,
-      amount: booking.amount,
-      paymentIntentId: booking.payment_intent_id || null
-    });
-    return { id, customer: booking.customer, item: booking.item, date: booking.date, status: booking.status, amount: booking.amount };
+  async getBookingById(id: string): Promise<any | null> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM bookings WHERE id = ?", [id]);
+    return rows.length > 0 ? rows[0] : null;
   }
 
-  async updateBooking(id: string, booking: Partial<Booking>): Promise<Booking | undefined> {
-    const result = await db.select().from(bookings).where(eq(bookings.id, id));
-    if (result.length === 0) return undefined;
-    
-    const existing = result[0];
-    const updated = {
-      id: existing.id,
-      customer: booking.customer ?? existing.customer,
-      item: booking.item ?? existing.item,
-      date: booking.date ?? existing.date,
-      status: booking.status ?? existing.status,
-      amount: booking.amount ?? existing.amount
-    };
+  async createBooking(booking: any): Promise<any> {
+    const id = booking.id || `BKG-${this.generateId().toUpperCase().substring(0, 6)}`;
+    await pool.query(
+      "INSERT INTO bookings (id, customer, item, date, status, amount) VALUES (?, ?, ?, ?, ?, ?)",
+      [id, booking.customer, booking.item, booking.date, booking.status || "Pending", booking.amount]
+    );
+    return { id, ...booking };
+  }
 
-    await db.update(bookings)
-      .set({
-        customer: updated.customer,
-        item: updated.item,
-        date: updated.date,
-        status: updated.status,
-        amount: updated.amount
-      })
-      .where(eq(bookings.id, id));
-    return updated as Booking;
+  async updateBooking(id: string, booking: any): Promise<any | null> {
+    const existing = await this.getBookingById(id);
+    if (!existing) return null;
+    await pool.query(
+      "UPDATE bookings SET customer = ?, item = ?, date = ?, status = ?, amount = ? WHERE id = ?",
+      [booking.customer, booking.item, booking.date, booking.status, booking.amount, id]
+    );
+    return { id, ...booking };
   }
 
   async deleteBooking(id: string): Promise<boolean> {
-    const result = await db.delete(bookings).where(eq(bookings.id, id));
-    return result.rowCount !== null && result.rowCount > 0;
+    const [result] = await pool.query<any>("DELETE FROM bookings WHERE id = ?", [id]);
+    return result.affectedRows > 0;
   }
 
-  async getReviews(): Promise<Review[]> {
-    const result = await db.select().from(reviews).orderBy(desc(reviews.createdAt));
-    return result.map(row => ({
-      id: row.id,
-      itemId: row.itemId,
-      itemType: row.itemType,
-      itemTitle: row.itemTitle,
-      userName: row.userName,
-      userEmail: row.userEmail || undefined,
-      rating: row.rating,
-      comment: row.comment,
-      status: row.status || 'pending',
-      createdAt: row.createdAt?.toISOString()
+  async getReviews(): Promise<any[]> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM reviews ORDER BY created_at DESC");
+    return rows.map((row) => ({
+      ...row,
+      itemId: row.item_id,
+      itemType: row.item_type,
+      itemTitle: row.item_title,
+      userName: row.user_name,
+      userEmail: row.user_email,
+      createdAt: row.created_at,
     }));
   }
 
-  async getReviewsByItem(itemId: string, itemType: string): Promise<Review[]> {
-    const result = await db.select()
-      .from(reviews)
-      .where(and(eq(reviews.itemId, itemId), eq(reviews.itemType, itemType as any)))
-      .orderBy(desc(reviews.createdAt));
-    
-    return result.map(row => ({
-      id: row.id,
-      itemId: row.itemId,
-      itemType: row.itemType,
-      itemTitle: row.itemTitle,
-      userName: row.userName,
-      userEmail: row.userEmail || undefined,
-      rating: row.rating,
-      comment: row.comment,
-      status: row.status || 'pending',
-      createdAt: row.createdAt?.toISOString()
+  async getReviewsByItem(itemId: string, itemType: string): Promise<any[]> {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      "SELECT * FROM reviews WHERE item_id = ? AND item_type = ? AND status = 'approved' ORDER BY created_at DESC",
+      [itemId, itemType]
+    );
+    return rows.map((row) => ({
+      ...row,
+      itemId: row.item_id,
+      itemType: row.item_type,
+      itemTitle: row.item_title,
+      userName: row.user_name,
+      userEmail: row.user_email,
+      createdAt: row.created_at,
     }));
   }
 
-  async getApprovedReviewsByItem(itemId: string, itemType: string): Promise<Review[]> {
-    const result = await db.select()
-      .from(reviews)
-      .where(
-        and(
-          eq(reviews.itemId, itemId),
-          eq(reviews.itemType, itemType as any),
-          eq(reviews.status, 'approved')
-        )
-      )
-      .orderBy(desc(reviews.createdAt));
-    
-    return result.map(row => ({
-      id: row.id,
-      itemId: row.itemId,
-      itemType: row.itemType,
-      itemTitle: row.itemTitle,
-      userName: row.userName,
-      userEmail: row.userEmail || undefined,
-      rating: row.rating,
-      comment: row.comment,
-      status: row.status || 'pending',
-      createdAt: row.createdAt?.toISOString()
-    }));
-  }
-
-  async createReview(review: Omit<Review, 'id' | 'createdAt'>): Promise<Review> {
-    const id = `rev-${Date.now()}`;
-    const [created] = await db.insert(reviews)
-      .values({
-        id,
-        itemId: review.itemId,
-        itemType: review.itemType as any,
-        itemTitle: review.itemTitle,
-        userName: review.userName,
-        userEmail: review.userEmail || null,
-        rating: review.rating,
-        comment: review.comment,
-        status: review.status as any
-      })
-      .returning();
-    
+  async getReviewById(id: string): Promise<any | null> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM reviews WHERE id = ?", [id]);
+    if (rows.length === 0) return null;
+    const row = rows[0];
     return {
-      id: created.id,
-      itemId: created.itemId,
-      itemType: created.itemType,
-      itemTitle: created.itemTitle,
-      userName: created.userName,
-      userEmail: created.userEmail || undefined,
-      rating: created.rating,
-      comment: created.comment,
-      status: created.status || 'pending',
-      createdAt: created.createdAt?.toISOString()
+      ...row,
+      itemId: row.item_id,
+      itemType: row.item_type,
+      itemTitle: row.item_title,
+      userName: row.user_name,
+      userEmail: row.user_email,
+      createdAt: row.created_at,
     };
   }
 
-  async updateReview(id: string, review: Partial<Omit<Review, 'id' | 'createdAt'>>): Promise<Review | undefined> {
-    const result = await db.select().from(reviews).where(eq(reviews.id, id));
-    if (result.length === 0) return undefined;
-    
-    const updateData: any = {};
-    if (review.rating !== undefined) updateData.rating = review.rating;
-    if (review.comment !== undefined) updateData.comment = review.comment;
-    if (review.status !== undefined) updateData.status = review.status;
-    
-    if (Object.keys(updateData).length === 0) {
-      const row = result[0];
-      return {
-        id: row.id,
-        itemId: row.itemId,
-        itemType: row.itemType,
-        itemTitle: row.itemTitle,
-        userName: row.userName,
-        userEmail: row.userEmail || undefined,
-        rating: row.rating,
-        comment: row.comment,
-        status: row.status || 'pending',
-        createdAt: row.createdAt?.toISOString()
-      };
-    }
-
-    const [updated] = await db.update(reviews)
-      .set(updateData)
-      .where(eq(reviews.id, id))
-      .returning();
-    
-    return {
-      id: updated.id,
-      itemId: updated.itemId,
-      itemType: updated.itemType,
-      itemTitle: updated.itemTitle,
-      userName: updated.userName,
-      userEmail: updated.userEmail || undefined,
-      rating: updated.rating,
-      comment: updated.comment,
-      status: updated.status || 'pending',
-      createdAt: updated.createdAt?.toISOString()
-    };
+  async createReview(review: any): Promise<any> {
+    const id = `rev-${this.generateId()}`;
+    await pool.query(
+      "INSERT INTO reviews (id, item_id, item_type, item_title, user_name, user_email, rating, comment, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [id, review.itemId, review.itemType, review.itemTitle, review.userName, review.userEmail, review.rating, review.comment, review.status || "pending"]
+    );
+    return { id, ...review };
   }
 
-  async updateReviewStatus(id: string, status: 'approved' | 'rejected'): Promise<Review | undefined> {
-    const result = await db.select().from(reviews).where(eq(reviews.id, id));
-    if (result.length === 0) return undefined;
-
-    const [updated] = await db.update(reviews)
-      .set({ status: status as any })
-      .where(eq(reviews.id, id))
-      .returning();
-    
-    return {
-      id: updated.id,
-      itemId: updated.itemId,
-      itemType: updated.itemType,
-      itemTitle: updated.itemTitle,
-      userName: updated.userName,
-      userEmail: updated.userEmail || undefined,
-      rating: updated.rating,
-      comment: updated.comment,
-      status: updated.status || 'pending',
-      createdAt: updated.createdAt?.toISOString()
-    };
+  async updateReview(id: string, review: any): Promise<any | null> {
+    const existing = await this.getReviewById(id);
+    if (!existing) return null;
+    await pool.query(
+      "UPDATE reviews SET status = ?, rating = ?, comment = ? WHERE id = ?",
+      [review.status, review.rating, review.comment, id]
+    );
+    return { id, ...existing, ...review };
   }
 
   async deleteReview(id: string): Promise<boolean> {
-    const result = await db.delete(reviews).where(eq(reviews.id, id));
-    return result.rowCount !== null && result.rowCount > 0;
+    const [result] = await pool.query<any>("DELETE FROM reviews WHERE id = ?", [id]);
+    return result.affectedRows > 0;
   }
 
-  async getTickets(): Promise<SupportTicket[]> {
-    const result = await db.query.supportTickets.findMany({
-      with: {
-        replies: true
-      },
-      orderBy: desc(supportTickets.createdAt)
-    });
-    
-    return result.map(ticket => ({
-      id: ticket.id,
-      subject: ticket.subject,
-      status: ticket.status || 'Open',
-      date: ticket.createdAt?.toISOString() || new Date().toISOString(),
-      priority: ticket.priority || 'Medium',
-      userEmail: ticket.userEmail,
-      replies: ticket.replies.map(reply => ({
-        id: reply.id,
-        sender: reply.sender,
-        message: reply.message,
-        date: reply.createdAt?.toISOString() || new Date().toISOString()
-      }))
+  async getSupportTickets(): Promise<any[]> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM support_tickets ORDER BY created_at DESC");
+    return rows.map((row) => ({
+      ...row,
+      userName: row.user_name,
+      userEmail: row.user_email,
+      createdAt: row.created_at,
     }));
   }
 
-  async getTicketsByUser(userEmail: string): Promise<SupportTicket[]> {
-    const result = await db.query.supportTickets.findMany({
-      where: eq(supportTickets.userEmail, userEmail),
-      with: {
-        replies: true
-      },
-      orderBy: desc(supportTickets.createdAt)
-    });
-    
-    return result.map(ticket => ({
-      id: ticket.id,
-      subject: ticket.subject,
-      status: ticket.status || 'Open',
-      date: ticket.createdAt?.toISOString() || new Date().toISOString(),
-      priority: ticket.priority || 'Medium',
-      userEmail: ticket.userEmail,
-      replies: ticket.replies.map(reply => ({
-        id: reply.id,
-        sender: reply.sender,
-        message: reply.message,
-        date: reply.createdAt?.toISOString() || new Date().toISOString()
-      }))
+  async getSupportTicketById(id: string): Promise<any | null> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM support_tickets WHERE id = ?", [id]);
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    const ticket = {
+      ...row,
+      userName: row.user_name,
+      userEmail: row.user_email,
+      createdAt: row.created_at,
+    };
+    ticket.replies = await this.getTicketReplies(id);
+    return ticket;
+  }
+
+  async createSupportTicket(ticket: any): Promise<any> {
+    const id = `TKT-${this.generateId().toUpperCase().substring(0, 6)}`;
+    await pool.query(
+      "INSERT INTO support_tickets (id, user_name, user_email, subject, message, status, priority) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [id, ticket.userName, ticket.userEmail, ticket.subject, ticket.message, ticket.status || "open", ticket.priority || "normal"]
+    );
+    return { id, ...ticket, replies: [] };
+  }
+
+  async updateSupportTicket(id: string, ticket: any): Promise<any | null> {
+    const existing = await this.getSupportTicketById(id);
+    if (!existing) return null;
+    await pool.query(
+      "UPDATE support_tickets SET status = ?, priority = ? WHERE id = ?",
+      [ticket.status, ticket.priority, id]
+    );
+    return { ...existing, ...ticket };
+  }
+
+  async deleteSupportTicket(id: string): Promise<boolean> {
+    const [result] = await pool.query<any>("DELETE FROM support_tickets WHERE id = ?", [id]);
+    return result.affectedRows > 0;
+  }
+
+  async getTicketReplies(ticketId: string): Promise<any[]> {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      "SELECT * FROM ticket_replies WHERE ticket_id = ? ORDER BY created_at ASC",
+      [ticketId]
+    );
+    return rows.map((row) => ({
+      ...row,
+      ticketId: row.ticket_id,
+      createdAt: row.created_at,
     }));
   }
 
-  async getTicketById(id: string): Promise<SupportTicket | undefined> {
-    const result = await db.query.supportTickets.findFirst({
-      where: eq(supportTickets.id, id),
-      with: {
-        replies: true
-      }
-    });
-    
-    if (!result) return undefined;
-    
+  async createTicketReply(reply: any): Promise<any> {
+    const id = this.generateId();
+    await pool.query(
+      "INSERT INTO ticket_replies (id, ticket_id, sender, message) VALUES (?, ?, ?, ?)",
+      [id, reply.ticketId, reply.sender, reply.message]
+    );
+    return { id, ...reply };
+  }
+
+  async getPaymentSettings(): Promise<any | null> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM payment_settings WHERE id = 1");
+    if (rows.length === 0) return null;
+    const row = rows[0];
     return {
-      id: result.id,
-      subject: result.subject,
-      status: result.status || 'Open',
-      date: result.createdAt?.toISOString() || new Date().toISOString(),
-      priority: result.priority || 'Medium',
-      userEmail: result.userEmail,
-      replies: result.replies.map(reply => ({
-        id: reply.id,
-        sender: reply.sender,
-        message: reply.message,
-        date: reply.createdAt?.toISOString() || new Date().toISOString()
-      }))
+      stripeEnabled: row.stripe_enabled,
+      paypalEnabled: row.paypal_enabled,
+      bankTransferEnabled: row.bank_transfer_enabled,
+      stripePublicKey: row.stripe_public_key,
+      stripeSecretKey: row.stripe_secret_key,
+      paypalClientId: row.paypal_client_id,
+      bankDetails: row.bank_details,
     };
   }
 
-  async createTicket(ticket: Omit<SupportTicket, 'id' | 'date' | 'replies' | 'status'>): Promise<SupportTicket> {
-    const id = randomUUID();
-    const [created] = await db.insert(supportTickets)
-      .values({
-        id,
-        subject: ticket.subject,
-        userEmail: ticket.userEmail,
-        priority: ticket.priority as any,
-        status: 'Open'
-      })
-      .returning();
-    
-    return {
-      id: created.id,
-      subject: created.subject,
-      status: created.status || 'Open',
-      date: created.createdAt?.toISOString() || new Date().toISOString(),
-      priority: created.priority || 'Medium',
-      userEmail: created.userEmail,
-      replies: []
-    };
+  async updatePaymentSettings(settings: any): Promise<any> {
+    await pool.query(
+      `INSERT INTO payment_settings (id, stripe_enabled, paypal_enabled, bank_transfer_enabled, stripe_public_key, stripe_secret_key, paypal_client_id, bank_details)
+       VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE stripe_enabled = ?, paypal_enabled = ?, bank_transfer_enabled = ?, stripe_public_key = ?, stripe_secret_key = ?, paypal_client_id = ?, bank_details = ?`,
+      [
+        settings.stripeEnabled, settings.paypalEnabled, settings.bankTransferEnabled, settings.stripePublicKey, settings.stripeSecretKey, settings.paypalClientId, settings.bankDetails,
+        settings.stripeEnabled, settings.paypalEnabled, settings.bankTransferEnabled, settings.stripePublicKey, settings.stripeSecretKey, settings.paypalClientId, settings.bankDetails,
+      ]
+    );
+    return settings;
   }
 
-  async updateTicketStatus(id: string, status: 'Open' | 'In Progress' | 'Closed'): Promise<SupportTicket | undefined> {
-    const result = await db.select().from(supportTickets).where(eq(supportTickets.id, id));
-    if (result.length === 0) return undefined;
-
-    await db.update(supportTickets)
-      .set({ status: status as any })
-      .where(eq(supportTickets.id, id));
-    
-    return this.getTicketById(id);
-  }
-
-  async addTicketReply(ticketId: string, reply: Omit<TicketReply, 'id' | 'date'>): Promise<TicketReply> {
-    const id = randomUUID();
-    const [created] = await db.insert(ticketReplies)
-      .values({
-        id,
-        ticketId,
-        sender: reply.sender as any,
-        message: reply.message
-      })
-      .returning();
-    
-    return {
-      id: created.id,
-      sender: created.sender,
-      message: created.message,
-      date: created.createdAt?.toISOString() || new Date().toISOString()
-    };
-  }
-
-  async deleteTicket(id: string): Promise<boolean> {
-    const result = await db.delete(supportTickets).where(eq(supportTickets.id, id));
-    return result.rowCount !== null && result.rowCount > 0;
-  }
-
-  async getPaymentSettings(): Promise<PaymentSettings[]> {
-    const result = await db.select().from(paymentSettings);
-    return result.map(row => ({
-      id: row.id,
-      provider: row.provider,
-      enabled: row.enabled ?? false,
-      secretKey: row.secretKey || '',
-      publishableKey: row.publishableKey || '',
-      webhookSecret: row.webhookSecret || undefined,
-      additionalConfig: (row.additionalConfig as Record<string, any>) || undefined
+  async getSubscribers(): Promise<any[]> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM subscribers ORDER BY subscribed_at DESC");
+    return rows.map((row) => ({
+      ...row,
+      subscribedAt: row.subscribed_at,
     }));
   }
 
-  async getPaymentSettingByProvider(provider: string): Promise<PaymentSettings | undefined> {
-    const result = await db.select().from(paymentSettings).where(eq(paymentSettings.provider, provider));
-    if (result.length === 0) return undefined;
-    const row = result[0];
-    return {
-      id: row.id,
-      provider: row.provider,
-      enabled: row.enabled ?? false,
-      secretKey: row.secretKey || '',
-      publishableKey: row.publishableKey || '',
-      webhookSecret: row.webhookSecret || undefined,
-      additionalConfig: (row.additionalConfig as Record<string, any>) || undefined
-    };
-  }
-
-  async updatePaymentSettings(provider: string, settings: Partial<PaymentSettings>): Promise<PaymentSettings | undefined> {
-    const result = await db.select().from(paymentSettings).where(eq(paymentSettings.provider, provider));
-    if (result.length === 0) return undefined;
-
-    const updateData: any = {};
-    if (settings.enabled !== undefined) updateData.enabled = settings.enabled;
-    if (settings.secretKey !== undefined) updateData.secretKey = settings.secretKey;
-    if (settings.publishableKey !== undefined) updateData.publishableKey = settings.publishableKey;
-    if (settings.webhookSecret !== undefined) updateData.webhookSecret = settings.webhookSecret;
-    if (settings.additionalConfig !== undefined) updateData.additionalConfig = settings.additionalConfig;
-
-    if (Object.keys(updateData).length === 0) {
-      return this.getPaymentSettingByProvider(provider);
-    }
-
-    await db.update(paymentSettings)
-      .set(updateData)
-      .where(eq(paymentSettings.provider, provider));
-
-    return this.getPaymentSettingByProvider(provider);
-  }
-
-  async getSubscribers(): Promise<Subscriber[]> {
-    const result = await db.select().from(subscribers).orderBy(desc(subscribers.subscribedAt));
-    return result.map(row => ({
-      id: row.id,
-      email: row.email,
-      name: row.name || undefined,
-      subscribedAt: row.subscribedAt?.toISOString() || new Date().toISOString(),
-      status: row.status || 'active'
-    }));
-  }
-
-  async getSubscriberByEmail(email: string): Promise<Subscriber | undefined> {
-    const result = await db.select().from(subscribers).where(eq(subscribers.email, email));
-    if (result.length === 0) return undefined;
-    const row = result[0];
-    return {
-      id: row.id,
-      email: row.email,
-      name: row.name || undefined,
-      subscribedAt: row.subscribedAt?.toISOString() || new Date().toISOString(),
-      status: row.status || 'active'
-    };
-  }
-
-  async createSubscriber(email: string, name?: string): Promise<Subscriber> {
-    const existing = await this.getSubscriberByEmail(email);
-    if (existing) {
-      if (existing.status === 'unsubscribed') {
-        await db.update(subscribers)
-          .set({ status: 'active', name: name || existing.name })
-          .where(eq(subscribers.email, email));
-        return { ...existing, status: 'active', name: name || existing.name };
-      }
-      return existing;
-    }
-
-    const id = randomUUID();
-    await db.insert(subscribers).values({
-      id,
-      email,
-      name: name || null,
-      status: 'active'
-    });
-    
-    return {
-      id,
-      email,
-      name: name || undefined,
-      subscribedAt: new Date().toISOString(),
-      status: 'active'
-    };
+  async createSubscriber(email: string): Promise<any> {
+    const id = this.generateId();
+    await pool.query("INSERT INTO subscribers (id, email) VALUES (?, ?)", [id, email]);
+    return { id, email };
   }
 
   async deleteSubscriber(id: string): Promise<boolean> {
-    const result = await db.delete(subscribers).where(eq(subscribers.id, id));
-    return result.rowCount !== null && result.rowCount > 0;
+    const [result] = await pool.query<any>("DELETE FROM subscribers WHERE id = ?", [id]);
+    return result.affectedRows > 0;
   }
 
-  async unsubscribeSubscriber(email: string): Promise<boolean> {
-    const result = await db.update(subscribers)
-      .set({ status: 'unsubscribed' })
-      .where(eq(subscribers.email, email));
-    return result.rowCount !== null && result.rowCount > 0;
+  async getEmailTemplates(): Promise<any[]> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM email_templates");
+    return rows as any[];
   }
 
-  async getSubscriberById(id: string): Promise<Subscriber | undefined> {
-    const result = await db.select().from(subscribers).where(eq(subscribers.id, id));
-    if (result.length === 0) return undefined;
-    const row = result[0];
-    return {
-      id: row.id,
-      email: row.email,
-      name: row.name || undefined,
-      subscribedAt: row.subscribedAt?.toISOString() || new Date().toISOString(),
-      status: row.status || 'active'
-    };
+  async getEmailTemplateById(id: string): Promise<any | null> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM email_templates WHERE id = ?", [id]);
+    return rows.length > 0 ? rows[0] : null;
   }
 
-  async getEmailTemplates(): Promise<EmailTemplate[]> {
-    const result = await db.select().from(emailTemplates).orderBy(desc(emailTemplates.createdAt));
-    return result.map(row => ({
-      id: row.id,
-      name: row.name,
-      subject: row.subject,
-      body: row.body,
-      variables: (row.variables as string[]) || [],
-      createdAt: row.createdAt?.toISOString() || undefined,
-      updatedAt: row.updatedAt?.toISOString() || undefined
-    }));
+  async createEmailTemplate(template: any): Promise<any> {
+    const id = this.generateId();
+    await pool.query(
+      "INSERT INTO email_templates (id, name, subject, body) VALUES (?, ?, ?, ?)",
+      [id, template.name, template.subject, template.body]
+    );
+    return { id, ...template };
   }
 
-  async getEmailTemplateById(id: string): Promise<EmailTemplate | undefined> {
-    const result = await db.select().from(emailTemplates).where(eq(emailTemplates.id, id));
-    if (result.length === 0) return undefined;
-    const row = result[0];
-    return {
-      id: row.id,
-      name: row.name,
-      subject: row.subject,
-      body: row.body,
-      variables: (row.variables as string[]) || [],
-      createdAt: row.createdAt?.toISOString() || undefined,
-      updatedAt: row.updatedAt?.toISOString() || undefined
-    };
-  }
-
-  async createEmailTemplate(template: Omit<EmailTemplate, 'id' | 'createdAt' | 'updatedAt'>): Promise<EmailTemplate> {
-    const id = randomUUID();
-    await db.insert(emailTemplates).values({
-      id,
-      name: template.name,
-      subject: template.subject,
-      body: template.body,
-      variables: template.variables || []
-    });
-    
-    return {
-      id,
-      ...template,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-  }
-
-  async updateEmailTemplate(id: string, template: Partial<Omit<EmailTemplate, 'id' | 'createdAt' | 'updatedAt'>>): Promise<EmailTemplate | undefined> {
+  async updateEmailTemplate(id: string, template: any): Promise<any | null> {
     const existing = await this.getEmailTemplateById(id);
-    if (!existing) return undefined;
-
-    const updateData: any = {};
-    if (template.name !== undefined) updateData.name = template.name;
-    if (template.subject !== undefined) updateData.subject = template.subject;
-    if (template.body !== undefined) updateData.body = template.body;
-    if (template.variables !== undefined) updateData.variables = template.variables;
-
-    if (Object.keys(updateData).length === 0) return existing;
-
-    await db.update(emailTemplates)
-      .set(updateData)
-      .where(eq(emailTemplates.id, id));
-
-    return { ...existing, ...template };
+    if (!existing) return null;
+    await pool.query(
+      "UPDATE email_templates SET name = ?, subject = ?, body = ? WHERE id = ?",
+      [template.name, template.subject, template.body, id]
+    );
+    return { id, ...template };
   }
 
   async deleteEmailTemplate(id: string): Promise<boolean> {
-    const result = await db.delete(emailTemplates).where(eq(emailTemplates.id, id));
-    return result.rowCount !== null && result.rowCount > 0;
+    const [result] = await pool.query<any>("DELETE FROM email_templates WHERE id = ?", [id]);
+    return result.affectedRows > 0;
   }
 
-  async getEmailSettings(): Promise<EmailSettings | undefined> {
-    const result = await db.select().from(emailSettings).limit(1);
-    if (result.length === 0) return undefined;
-    const row = result[0];
+  async getEmailSettings(): Promise<any | null> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM email_settings WHERE id = 1");
+    if (rows.length === 0) return null;
+    const row = rows[0];
     return {
-      id: row.id,
-      enabled: row.enabled ?? false,
-      host: row.host || undefined,
-      port: row.port || undefined,
-      secure: row.secure ?? false,
-      username: row.username || undefined,
-      password: row.password || undefined,
-      fromEmail: row.fromEmail || undefined,
-      fromName: row.fromName || undefined
+      smtpHost: row.smtp_host,
+      smtpPort: row.smtp_port,
+      smtpUser: row.smtp_user,
+      smtpPassword: row.smtp_password,
+      fromEmail: row.from_email,
+      fromName: row.from_name,
     };
   }
 
-  async updateEmailSettings(settings: Partial<Omit<EmailSettings, 'id'>>): Promise<EmailSettings | undefined> {
-    const existing = await this.getEmailSettings();
-    if (!existing) {
-      const id = randomUUID();
-      await db.insert(emailSettings).values({
-        id,
-        enabled: settings.enabled ?? false,
-        host: settings.host || null,
-        port: settings.port || null,
-        secure: settings.secure ?? false,
-        username: settings.username || null,
-        password: settings.password || null,
-        fromEmail: settings.fromEmail || null,
-        fromName: settings.fromName || null
-      });
-      return this.getEmailSettings();
-    }
+  async updateEmailSettings(settings: any): Promise<any> {
+    await pool.query(
+      `INSERT INTO email_settings (id, smtp_host, smtp_port, smtp_user, smtp_password, from_email, from_name)
+       VALUES (1, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE smtp_host = ?, smtp_port = ?, smtp_user = ?, smtp_password = ?, from_email = ?, from_name = ?`,
+      [
+        settings.smtpHost, settings.smtpPort, settings.smtpUser, settings.smtpPassword, settings.fromEmail, settings.fromName,
+        settings.smtpHost, settings.smtpPort, settings.smtpUser, settings.smtpPassword, settings.fromEmail, settings.fromName,
+      ]
+    );
+    return settings;
+  }
 
-    const updateData: any = {};
-    if (settings.enabled !== undefined) updateData.enabled = settings.enabled;
-    if (settings.host !== undefined) updateData.host = settings.host || null;
-    if (settings.port !== undefined) updateData.port = settings.port || null;
-    if (settings.secure !== undefined) updateData.secure = settings.secure;
-    if (settings.username !== undefined) updateData.username = settings.username || null;
-    if (settings.password !== undefined) updateData.password = settings.password || null;
-    if (settings.fromEmail !== undefined) updateData.fromEmail = settings.fromEmail || null;
-    if (settings.fromName !== undefined) updateData.fromName = settings.fromName || null;
+  async getUserByUsername(username: string): Promise<any | null> {
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM users WHERE username = ?", [username]);
+    return rows.length > 0 ? rows[0] : null;
+  }
 
-    if (Object.keys(updateData).length === 0) return existing;
-
-    await db.update(emailSettings)
-      .set(updateData)
-      .where(eq(emailSettings.id, existing.id));
-
-    return this.getEmailSettings();
+  async createUser(user: any): Promise<any> {
+    const id = this.generateId();
+    await pool.query(
+      "INSERT INTO users (id, username, password, role) VALUES (?, ?, ?, ?)",
+      [id, user.username, user.password, user.role || "user"]
+    );
+    return { id, ...user };
   }
 }
 
-export const storage = new DatabaseStorage();
+export const storage = new MySQLStorage();
