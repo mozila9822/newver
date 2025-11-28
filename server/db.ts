@@ -226,6 +226,33 @@ export async function initializeDatabase() {
       // Column already exists, ignore
     }
 
+    // Add missing columns to payment_settings table
+    try {
+      await connection.query("ALTER TABLE payment_settings ADD COLUMN bank_transfer_enabled BOOLEAN DEFAULT false");
+    } catch (e) {
+      // Column already exists, ignore
+    }
+    try {
+      await connection.query("ALTER TABLE payment_settings ADD COLUMN bank_details TEXT");
+    } catch (e) {
+      // Column already exists, ignore
+    }
+    try {
+      await connection.query("ALTER TABLE payment_settings ADD COLUMN stripe_public_key TEXT");
+    } catch (e) {
+      // Column already exists, ignore
+    }
+    try {
+      await connection.query("ALTER TABLE payment_settings ADD COLUMN stripe_secret_key TEXT");
+    } catch (e) {
+      // Column already exists, ignore
+    }
+    try {
+      await connection.query("ALTER TABLE payment_settings ADD COLUMN paypal_client_id TEXT");
+    } catch (e) {
+      // Column already exists, ignore
+    }
+
     // Add meta_description column to trips, hotels, cars, last_minute_offers if it doesn't exist
     try {
       await connection.query("ALTER TABLE trips ADD COLUMN meta_description TEXT");

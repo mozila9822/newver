@@ -3258,7 +3258,8 @@ export default function AdminDashboard() {
                                        <h3 className="font-semibold">
                                           {setting.provider === 'bank_transfer' ? 'Bank Transfer' : 
                                            setting.provider === 'stripe' ? 'Stripe' :
-                                           setting.provider.charAt(0).toUpperCase() + setting.provider.slice(1)}
+                                           setting.provider === 'paypal' ? 'PayPal' :
+                                           setting.provider ? setting.provider.charAt(0).toUpperCase() + setting.provider.slice(1) : 'Unknown'}
                                        </h3>
                                        <p className="text-sm text-muted-foreground">
                                           {setting.enabled ? (

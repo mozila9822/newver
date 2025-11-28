@@ -652,31 +652,49 @@ class MySQLStorage implements IStorage {
   }
 
   async getPaymentSettings(): Promise<any[]> {
-    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM payment_settings WHERE id = 1");
-    const row = rows.length > 0 ? rows[0] : null;
-    
-    return [
-      {
-        id: 1,
-        provider: 'stripe',
-        enabled: row ? !!row.stripe_enabled : false,
-        publishableKey: row?.stripe_public_key || "",
-        secretKey: row?.stripe_secret_key || "",
-      },
-      {
-        id: 2,
-        provider: 'paypal',
-        enabled: row ? !!row.paypal_enabled : false,
-        publishableKey: row?.paypal_client_id || "",
-        secretKey: "",
-      },
-      {
-        id: 3,
-        provider: 'bank_transfer',
-        enabled: row ? !!row.bank_transfer_enabled : false,
-        additionalConfig: row?.bank_details ? JSON.parse(row.bank_details) : {},
-      },
-    ];
+    try {
+      const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM payment_settings WHERE id = 1");
+      const row = rows.length > 0 ? rows[0] : null;
+      
+      let bankDetails = {};
+      if (row?.bank_details) {
+        try {
+          bankDetails = JSON.parse(row.bank_details);
+        } catch (e) {
+          bankDetails = {};
+        }
+      }
+      
+      return [
+        {
+          id: 1,
+          provider: 'stripe',
+          enabled: row ? !!row.stripe_enabled : false,
+          publishableKey: row?.stripe_public_key || "",
+          secretKey: row?.stripe_secret_key || "",
+        },
+        {
+          id: 2,
+          provider: 'paypal',
+          enabled: row ? !!row.paypal_enabled : false,
+          publishableKey: row?.paypal_client_id || "",
+          secretKey: "",
+        },
+        {
+          id: 3,
+          provider: 'bank_transfer',
+          enabled: row ? !!row.bank_transfer_enabled : false,
+          additionalConfig: bankDetails,
+        },
+      ];
+    } catch (error) {
+      console.error("Error getting payment settings:", error);
+      return [
+        { id: 1, provider: 'stripe', enabled: false, publishableKey: "", secretKey: "" },
+        { id: 2, provider: 'paypal', enabled: false, publishableKey: "", secretKey: "" },
+        { id: 3, provider: 'bank_transfer', enabled: false, additionalConfig: {} },
+      ];
+    }
   }
 
   async getPaymentSettingByProvider(provider: string): Promise<any | null> {
