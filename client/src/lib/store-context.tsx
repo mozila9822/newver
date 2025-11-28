@@ -142,9 +142,19 @@ export interface FooterData {
 export interface WebsiteSettings {
   name: string;
   logo: string;
+  tagline: string;
   seoTitle: string;
   seoDescription: string;
   seoKeywords: string;
+  contactEmail: string;
+  contactPhone: string;
+  contactAddress: string;
+  facebookUrl: string;
+  instagramUrl: string;
+  twitterUrl: string;
+  linkedinUrl: string;
+  youtubeUrl: string;
+  whatsappNumber: string;
 }
 
 interface StoreContextType {
@@ -216,9 +226,19 @@ interface StoreContextType {
 const initialWebsiteSettings: WebsiteSettings = {
   name: "Voyager Hub",
   logo: "",
+  tagline: "Luxury Travel Experiences",
   seoTitle: "Voyager Hub | Luxury Travel Experiences",
   seoDescription: "Curating exceptional journeys for the discerning traveler. We believe in the art of travel and the luxury of experience.",
-  seoKeywords: "luxury travel, exclusive trips, 5-star hotels, private transport"
+  seoKeywords: "luxury travel, exclusive trips, 5-star hotels, private transport",
+  contactEmail: "",
+  contactPhone: "",
+  contactAddress: "",
+  facebookUrl: "",
+  instagramUrl: "",
+  twitterUrl: "",
+  linkedinUrl: "",
+  youtubeUrl: "",
+  whatsappNumber: "",
 };
 
 const initialUserProfile: UserProfile = {
@@ -335,13 +355,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [tripsRes, hotelsRes, carsRes, offersRes, bookingsRes, reviewsRes] = await Promise.all([
+      const [tripsRes, hotelsRes, carsRes, offersRes, bookingsRes, reviewsRes, siteSettingsRes] = await Promise.all([
         fetch('/api/trips'),
         fetch('/api/hotels'),
         fetch('/api/cars'),
         fetch('/api/last-minute-offers'),
         fetch('/api/bookings'),
-        fetch('/api/reviews')
+        fetch('/api/reviews'),
+        fetch('/api/site-settings')
       ]);
 
       if (tripsRes.ok) {
@@ -372,6 +393,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (reviewsRes.ok) {
         const reviewsData = await reviewsRes.json();
         setReviews(reviewsData);
+      }
+
+      if (siteSettingsRes.ok) {
+        const siteSettingsData = await siteSettingsRes.json();
+        setWebsiteSettings({
+          name: siteSettingsData.siteName || initialWebsiteSettings.name,
+          logo: siteSettingsData.logoUrl || "",
+          tagline: siteSettingsData.tagline || "",
+          seoTitle: siteSettingsData.seoTitle || initialWebsiteSettings.seoTitle,
+          seoDescription: siteSettingsData.seoDescription || initialWebsiteSettings.seoDescription,
+          seoKeywords: siteSettingsData.seoKeywords || initialWebsiteSettings.seoKeywords,
+          contactEmail: siteSettingsData.contactEmail || "",
+          contactPhone: siteSettingsData.contactPhone || "",
+          contactAddress: siteSettingsData.contactAddress || "",
+          facebookUrl: siteSettingsData.facebookUrl || "",
+          instagramUrl: siteSettingsData.instagramUrl || "",
+          twitterUrl: siteSettingsData.twitterUrl || "",
+          linkedinUrl: siteSettingsData.linkedinUrl || "",
+          youtubeUrl: siteSettingsData.youtubeUrl || "",
+          whatsappNumber: siteSettingsData.whatsappNumber || "",
+        });
       }
     } catch (error) {
       console.error('Error fetching data from API:', error);
