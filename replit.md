@@ -130,6 +130,20 @@ Two-stage build process separates client and server artifacts. Server bundling u
 **Architectural Note**:
 Mismatch between Drizzle schema (PostgreSQL) and runtime database (MySQL) suggests migration in progress or dual-target support. Production uses MySQL with manual table creation in `server/db.ts`, while schema files prepare for PostgreSQL deployment.
 
+### SEO Features
+
+**Meta Descriptions**:
+- All entity types (trips, hotels, cars, last-minute offers) support custom meta descriptions
+- Meta descriptions editable from admin panel with 160-character counter
+- Stored in database `meta_description` column (TEXT type)
+- Available for consumption by frontend detail pages for head meta tags
+
+**Dynamic Sitemap**:
+- Endpoint: `/sitemap.xml` generates valid XML sitemap
+- Includes all static pages (/trips, /hotels, /cars, /last-minute, /about, /contact, /support)
+- Includes all dynamic entity pages with human-readable slugs
+- Uses absolute URLs derived from request protocol and host
+
 ### Email Services
 
 **Newsletter Subscription**:
