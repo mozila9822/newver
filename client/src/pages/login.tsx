@@ -154,7 +154,7 @@ export default function LoginPage() {
           </div>
           
           <div className="text-center text-sm text-muted-foreground">
-            <Link href="/"><a className="hover:underline">Back to Home</a></Link>
+            <Link href="/" className="hover:underline">Back to Home</Link>
           </div>
         </CardContent>
       </Card>

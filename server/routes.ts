@@ -134,6 +134,56 @@ export async function registerRoutes(
     }
   });
 
+  // ============== ROOM TYPES ==============
+  app.get("/api/hotels/:hotelId/room-types", async (req, res) => {
+    try {
+      const roomTypes = await storage.getRoomTypes(req.params.hotelId);
+      res.json(roomTypes);
+    } catch (error) {
+      console.error("Error fetching room types:", error);
+      res.status(500).json({ message: "Failed to fetch room types" });
+    }
+  });
+
+  app.post("/api/hotels/:hotelId/room-types", async (req, res) => {
+    try {
+      const roomType = await storage.createRoomType({
+        ...req.body,
+        hotelId: req.params.hotelId
+      });
+      res.status(201).json(roomType);
+    } catch (error) {
+      console.error("Error creating room type:", error);
+      res.status(500).json({ message: "Failed to create room type" });
+    }
+  });
+
+  app.put("/api/room-types/:id", async (req, res) => {
+    try {
+      const roomType = await storage.updateRoomType(req.params.id, req.body);
+      if (!roomType) {
+        return res.status(404).json({ message: "Room type not found" });
+      }
+      res.json(roomType);
+    } catch (error) {
+      console.error("Error updating room type:", error);
+      res.status(500).json({ message: "Failed to update room type" });
+    }
+  });
+
+  app.delete("/api/room-types/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteRoomType(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Room type not found" });
+      }
+      res.json({ message: "Room type deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting room type:", error);
+      res.status(500).json({ message: "Failed to delete room type" });
+    }
+  });
+
   // ============== CARS ==============
   app.get("/api/cars", async (_req, res) => {
     try {

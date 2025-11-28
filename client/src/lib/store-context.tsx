@@ -441,13 +441,36 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // ============== HOTEL CRUD ==============
   const addHotel = async (hotel: Omit<Hotel, 'id'>): Promise<Hotel | null> => {
     try {
+      const { roomTypes, ...hotelData } = hotel as any;
       const res = await fetch('/api/hotels', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(hotel)
+        body: JSON.stringify(hotelData)
       });
       if (res.ok) {
         const newHotel = await res.json();
+        
+        if (roomTypes && roomTypes.length > 0) {
+          const createdRoomTypes = [];
+          for (const rt of roomTypes) {
+            const rtRes = await fetch(`/api/hotels/${newHotel.id}/room-types`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                name: rt.name,
+                price: rt.price,
+                description: rt.description || '',
+                facilities: rt.facilities || []
+              })
+            });
+            if (rtRes.ok) {
+              const createdRt = await rtRes.json();
+              createdRoomTypes.push(createdRt);
+            }
+          }
+          newHotel.roomTypes = createdRoomTypes;
+        }
+        
         setHotels(prev => [...prev, newHotel]);
         return newHotel;
       }
@@ -459,13 +482,71 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const updateHotel = async (hotel: Hotel): Promise<boolean> => {
     try {
+      const { roomTypes, ...hotelData } = hotel as any;
       const res = await fetch(`/api/hotels/${hotel.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(hotel)
+        body: JSON.stringify(hotelData)
       });
       if (res.ok) {
         const updatedHotel = await res.json();
+        
+        if (roomTypes) {
+          const existingHotel = hotels.find(h => h.id === hotel.id);
+          const existingRoomTypes = existingHotel?.roomTypes || [];
+          
+          const existingIds = new Set(existingRoomTypes.map(rt => rt.id));
+          const newIds = new Set(roomTypes.map((rt: RoomType) => rt.id));
+          
+          for (const rt of roomTypes) {
+            if (existingIds.has(rt.id)) {
+              await fetch(`/api/room-types/${rt.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  name: rt.name,
+                  price: rt.price,
+                  description: rt.description || '',
+                  facilities: rt.facilities || []
+                })
+              });
+            } else if (!rt.id.startsWith('temp-')) {
+              await fetch(`/api/hotels/${hotel.id}/room-types`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  name: rt.name,
+                  price: rt.price,
+                  description: rt.description || '',
+                  facilities: rt.facilities || []
+                })
+              });
+            } else {
+              await fetch(`/api/hotels/${hotel.id}/room-types`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  name: rt.name,
+                  price: rt.price,
+                  description: rt.description || '',
+                  facilities: rt.facilities || []
+                })
+              });
+            }
+          }
+          
+          for (const existingRt of existingRoomTypes) {
+            if (!newIds.has(existingRt.id)) {
+              await fetch(`/api/room-types/${existingRt.id}`, { method: 'DELETE' });
+            }
+          }
+          
+          const rtRes = await fetch(`/api/hotels/${hotel.id}/room-types`);
+          if (rtRes.ok) {
+            updatedHotel.roomTypes = await rtRes.json();
+          }
+        }
+        
         setHotels(prev => prev.map(h => h.id === hotel.id ? updatedHotel : h));
         return true;
       }

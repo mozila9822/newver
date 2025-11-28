@@ -113,8 +113,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         )}
       >
         <div className="container mx-auto px-6 flex items-center justify-between">
-          <Link href="/">
-            <a className="flex items-center gap-2 group">
+          <Link href="/" className="flex items-center gap-2 group">
               {websiteSettings.logo ? (
                 <img 
                   src={websiteSettings.logo} 
@@ -135,23 +134,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               )}>
                 {websiteSettings.name}
               </span>
-            </a>
           </Link>
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
-              <Link key={link.href} href={link.href}>
-                <a
-                  className={cn(
-                    "text-sm font-medium uppercase tracking-widest hover:text-secondary transition-colors relative after:content-[''] after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:bg-secondary after:transition-all after:duration-300",
-                    location === link.href ? "text-secondary after:w-full" : "after:w-0 hover:after:w-full",
-                    scrolled || location !== "/" ? "text-foreground" : "text-white/90",
-                    link.isSpecial && "text-destructive font-bold hover:text-destructive/80 after:bg-destructive"
-                  )}
-                >
-                  {link.label}
-                </a>
+              <Link 
+                key={link.href} 
+                href={link.href}
+                className={cn(
+                  "text-sm font-medium uppercase tracking-widest hover:text-secondary transition-colors relative after:content-[''] after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:bg-secondary after:transition-all after:duration-300",
+                  location === link.href ? "text-secondary after:w-full" : "after:w-0 hover:after:w-full",
+                  scrolled || location !== "/" ? "text-foreground" : "text-white/90",
+                  link.isSpecial && "text-destructive font-bold hover:text-destructive/80 after:bg-destructive"
+                )}
+              >
+                {link.label}
               </Link>
             ))}
           </nav>
@@ -285,8 +283,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <ul className="space-y-4 text-sm text-primary-foreground/60">
                 {footer.experiences.map((link, index) => (
                   <li key={index}>
-                    <Link href={link.href}>
-                      <a className="hover:text-secondary transition-colors">{link.label}</a>
+                    <Link href={link.href} className="hover:text-secondary transition-colors">
+                      {link.label}
                     </Link>
                   </li>
                 ))}
