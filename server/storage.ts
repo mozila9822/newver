@@ -152,22 +152,41 @@ class MySQLStorage implements IStorage {
   }
 
   async getHotels(): Promise<any[]> {
-    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM hotels ORDER BY sort_order ASC, id ASC");
-    const hotels: any[] = rows.map((row) => ({
-      ...row,
-      amenities: row.amenities ? (typeof row.amenities === "string" ? JSON.parse(row.amenities) : row.amenities) : [],
-      gallery: row.gallery ? (typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery) : [],
-      alwaysAvailable: row.always_available ?? true,
-      isActive: row.is_active ?? true,
-      availableFrom: row.available_from || null,
-      availableTo: row.available_to || null,
-      stars: row.stars || 5,
-      sortOrder: row.sort_order || 0,
-      metaDescription: row.meta_description || "",
-    }));
-
-    for (const hotel of hotels) {
-      hotel.roomTypes = await this.getRoomTypes(hotel.id);
+    // First get IDs in sorted order (without loading large gallery data)
+    const [sortedIds] = await pool.query<RowDataPacket[]>(
+      "SELECT id FROM hotels ORDER BY COALESCE(sort_order, 0) ASC, id ASC"
+    );
+    
+    if (sortedIds.length === 0) return [];
+    
+    // Then fetch full hotel data
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM hotels");
+    
+    // Create a map for quick lookup
+    const hotelMap = new Map<string, any>();
+    for (const row of rows) {
+      hotelMap.set(row.id, {
+        ...row,
+        amenities: row.amenities ? (typeof row.amenities === "string" ? JSON.parse(row.amenities) : row.amenities) : [],
+        gallery: row.gallery ? (typeof row.gallery === "string" ? JSON.parse(row.gallery) : row.gallery) : [],
+        alwaysAvailable: row.always_available ?? true,
+        isActive: row.is_active ?? true,
+        availableFrom: row.available_from || null,
+        availableTo: row.available_to || null,
+        stars: row.stars || 5,
+        sortOrder: row.sort_order || 0,
+        metaDescription: row.meta_description || "",
+      });
+    }
+    
+    // Build sorted result using the ID order
+    const hotels: any[] = [];
+    for (const idRow of sortedIds) {
+      const hotel = hotelMap.get(idRow.id);
+      if (hotel) {
+        hotel.roomTypes = await this.getRoomTypes(hotel.id);
+        hotels.push(hotel);
+      }
     }
 
     return hotels;
