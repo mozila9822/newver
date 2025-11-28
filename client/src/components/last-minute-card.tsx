@@ -13,14 +13,16 @@ interface LastMinuteCardProps {
   location: string;
   price: string;
   originalPrice: string;
-  rating: number;
+  rating?: number;
   endsIn: string;
   discount: string;
 }
 
-export default function LastMinuteCard({ id, image, title, location, price, originalPrice, rating, endsIn, discount }: LastMinuteCardProps) {
-  const { getReviewCount } = useStore();
-  const reviewCount = getReviewCount(id, 'offer');
+export default function LastMinuteCard({ id, image, title, location, price, originalPrice, rating: propRating, endsIn, discount }: LastMinuteCardProps) {
+  const { getReviewStats } = useStore();
+  const stats = getReviewStats(id, 'offer');
+  const rating = stats.reviewCount > 0 ? stats.averageRating : (propRating || 0);
+  const reviewCount = stats.reviewCount;
   const slug = generateSlug(title);
   return (
     <motion.div 
@@ -63,9 +65,18 @@ export default function LastMinuteCard({ id, image, title, location, price, orig
         <h3 className="font-serif text-xl font-bold mb-2 group-hover:text-destructive transition-colors">{title}</h3>
         
         <div className="flex items-center gap-1 mb-4 text-sm">
-          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-          <span className="font-medium">{rating}</span>
-          <span className="text-muted-foreground text-xs ml-1">({reviewCount} review{reviewCount !== 1 ? 's' : ''})</span>
+          {reviewCount > 0 ? (
+            <>
+              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+              <span className="font-medium">{rating}</span>
+              <span className="text-muted-foreground text-xs ml-1">({reviewCount} review{reviewCount !== 1 ? 's' : ''})</span>
+            </>
+          ) : (
+            <>
+              <Star className="w-4 h-4 text-muted-foreground" />
+              <span className="text-muted-foreground text-xs">No reviews yet</span>
+            </>
+          )}
         </div>
 
         <div className="mt-auto pt-4 border-t border-border/50 flex items-center justify-between gap-2 relative z-30">

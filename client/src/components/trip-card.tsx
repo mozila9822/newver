@@ -11,14 +11,16 @@ interface TripCardProps {
   title: string;
   location: string;
   price: string;
-  rating: number;
+  rating?: number;
   duration?: string;
   type: "trip" | "hotel" | "car" | "offer";
 }
 
-export default function TripCard({ id, image, title, location, price, rating, duration, type }: TripCardProps) {
-  const { getReviewCount } = useStore();
-  const reviewCount = getReviewCount(id, type);
+export default function TripCard({ id, image, title, location, price, rating: propRating, duration, type }: TripCardProps) {
+  const { getReviewStats } = useStore();
+  const stats = getReviewStats(id, type);
+  const rating = stats.reviewCount > 0 ? stats.averageRating : (propRating || 0);
+  const reviewCount = stats.reviewCount;
   const slug = generateSlug(title);
   return (
     <motion.div 
@@ -53,11 +55,18 @@ export default function TripCard({ id, image, title, location, price, rating, du
         <h3 className="font-serif text-xl font-bold mb-2 group-hover:text-secondary transition-colors">{title}</h3>
         
         <div className="flex items-center gap-4 mb-4 text-sm">
-          <div className="flex items-center gap-1">
-            <Star className="w-4 h-4 fill-secondary text-secondary" />
-            <span className="font-medium">{rating}</span>
-            <span className="text-muted-foreground text-xs">({reviewCount} review{reviewCount !== 1 ? 's' : ''})</span>
-          </div>
+          {reviewCount > 0 ? (
+            <div className="flex items-center gap-1">
+              <Star className="w-4 h-4 fill-secondary text-secondary" />
+              <span className="font-medium">{rating}</span>
+              <span className="text-muted-foreground text-xs">({reviewCount} review{reviewCount !== 1 ? 's' : ''})</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <Star className="w-4 h-4" />
+              <span className="text-xs">No reviews yet</span>
+            </div>
+          )}
           {duration && (
             <div className="text-muted-foreground border-l border-border pl-4">
               {duration}

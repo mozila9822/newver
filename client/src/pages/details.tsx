@@ -83,10 +83,10 @@ export default function DetailsPage() {
     fetchItemReviews();
   }, [type, item?.id, reviews]); // Re-fetch when global reviews change
 
-  // Calculate the average rating from reviews
+  // Calculate the average rating from reviews (don't show static rating when there are no reviews)
   const avgRating = itemReviews.length > 0 
     ? (itemReviews.reduce((sum, r) => sum + r.rating, 0) / itemReviews.length).toFixed(1)
-    : item?.rating;
+    : 0;
 
   const selectedRoomType = item?.roomTypes?.find((r: any) => r.id === selectedRoomTypeId);
   const currentPrice = selectedRoomType ? selectedRoomType.price : item?.price;
@@ -173,9 +173,15 @@ export default function DetailsPage() {
                  <div className="flex items-center gap-1">
                    <MapPin className="w-4 h-4" /> {item.location}
                  </div>
-                 <div className="flex items-center gap-1">
-                   <Star className="w-4 h-4 fill-secondary text-secondary" /> {avgRating} ({itemReviews.length} review{itemReviews.length !== 1 ? 's' : ''})
-                 </div>
+                 {itemReviews.length > 0 ? (
+                   <div className="flex items-center gap-1">
+                     <Star className="w-4 h-4 fill-secondary text-secondary" /> {avgRating} ({itemReviews.length} review{itemReviews.length !== 1 ? 's' : ''})
+                   </div>
+                 ) : (
+                   <div className="flex items-center gap-1 opacity-70">
+                     <Star className="w-4 h-4" /> No reviews yet
+                   </div>
+                 )}
                  {item.duration && (
                    <div className="flex items-center gap-1">
                      <Clock className="w-4 h-4" /> {item.duration}

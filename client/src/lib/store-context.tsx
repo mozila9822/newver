@@ -247,6 +247,8 @@ interface StoreContextType {
   getReviewsByItem: (itemId: string, itemType: string) => Promise<Review[]>;
   getApprovedReviewsByItem: (itemId: string, itemType: string) => Promise<Review[]>;
   getReviewCount: (itemId: string, itemType: string) => number;
+  getAverageRating: (itemId: string, itemType: string) => number;
+  getReviewStats: (itemId: string, itemType: string) => { averageRating: number; reviewCount: number };
   websiteSettings: WebsiteSettings;
   updateWebsiteSettings: (settings: Partial<WebsiteSettings>) => void;
   refetchData: () => void;
@@ -1151,6 +1153,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return reviews.filter(r => r.itemId === itemId && r.itemType === itemType && r.status === 'approved').length;
   };
 
+  const getAverageRating = (itemId: string, itemType: string): number => {
+    const approvedReviews = reviews.filter(r => r.itemId === itemId && r.itemType === itemType && r.status === 'approved');
+    if (approvedReviews.length === 0) return 0;
+    const sum = approvedReviews.reduce((acc, r) => acc + r.rating, 0);
+    return parseFloat((sum / approvedReviews.length).toFixed(1));
+  };
+
+  const getReviewStats = (itemId: string, itemType: string): { averageRating: number; reviewCount: number } => {
+    const approvedReviews = reviews.filter(r => r.itemId === itemId && r.itemType === itemType && r.status === 'approved');
+    if (approvedReviews.length === 0) return { averageRating: 0, reviewCount: 0 };
+    const sum = approvedReviews.reduce((acc, r) => acc + r.rating, 0);
+    return {
+      averageRating: parseFloat((sum / approvedReviews.length).toFixed(1)),
+      reviewCount: approvedReviews.length
+    };
+  };
+
   const updateWebsiteSettings = (settings: Partial<WebsiteSettings>) => {
     setWebsiteSettings(prev => ({ ...prev, ...settings }));
   };
@@ -1166,7 +1185,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       userProfile, updateUserProfile, paymentCards, addPaymentCard, deletePaymentCard, fetchPaymentCards,
       userRewards, rewardTransactions, fetchUserRewards, fetchRewardTransactions, addRewardPoints, detectedCurrency,
       userTickets, allTickets, fetchUserTickets, fetchAllTickets, createTicket, replyToTicket, replyToTicketAsAdmin, updateTicketStatus,
-      bookings, addBooking, updateBooking, updatePaymentStatus, deleteBooking, reviews, addReview, updateReview, updateReviewStatus, deleteReview, getReviewsByItem, getApprovedReviewsByItem, getReviewCount,
+      bookings, addBooking, updateBooking, updatePaymentStatus, deleteBooking, reviews, addReview, updateReview, updateReviewStatus, deleteReview, getReviewsByItem, getApprovedReviewsByItem, getReviewCount, getAverageRating, getReviewStats,
       websiteSettings, updateWebsiteSettings, refetchData
     }}>
       {children}
