@@ -979,6 +979,150 @@ class MySQLStorage implements IStorage {
     );
     return settings;
   }
+
+  // User Payment Methods
+  async getUserPaymentMethods(userId: string): Promise<any[]> {
+    const [rows] = await pool.query(
+      "SELECT * FROM user_payment_methods WHERE user_id = ? ORDER BY is_default DESC, created_at DESC",
+      [userId]
+    );
+    return (rows as any[]).map(row => ({
+      id: row.id,
+      userId: row.user_id,
+      brand: row.card_brand,
+      last4: row.last4,
+      expiry: row.expiry,
+      cardholderName: row.cardholder_name,
+      isDefault: row.is_default,
+      createdAt: row.created_at
+    }));
+  }
+
+  async addUserPaymentMethod(userId: string, card: any): Promise<any> {
+    const id = card.id || `card_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    await pool.query(
+      `INSERT INTO user_payment_methods (id, user_id, card_brand, last4, expiry, cardholder_name, is_default)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, userId, card.brand, card.last4, card.expiry, card.cardholderName, card.isDefault || false]
+    );
+    return { id, userId, ...card };
+  }
+
+  async deleteUserPaymentMethod(userId: string, cardId: string): Promise<boolean> {
+    const [result] = await pool.query(
+      "DELETE FROM user_payment_methods WHERE id = ? AND user_id = ?",
+      [cardId, userId]
+    );
+    return (result as any).affectedRows > 0;
+  }
+
+  async setDefaultPaymentMethod(userId: string, cardId: string): Promise<boolean> {
+    await pool.query("UPDATE user_payment_methods SET is_default = false WHERE user_id = ?", [userId]);
+    const [result] = await pool.query(
+      "UPDATE user_payment_methods SET is_default = true WHERE id = ? AND user_id = ?",
+      [cardId, userId]
+    );
+    return (result as any).affectedRows > 0;
+  }
+
+  // User Rewards
+  async getUserRewards(userId: string): Promise<any> {
+    const [rows] = await pool.query("SELECT * FROM user_rewards WHERE user_id = ?", [userId]);
+    const rewards = rows as any[];
+    if (rewards.length === 0) {
+      // Create default rewards record
+      const id = `rewards_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      await pool.query(
+        `INSERT INTO user_rewards (id, user_id, points, tier, total_bookings, total_spent)
+         VALUES (?, ?, 0, 'Bronze', 0, 0)`,
+        [id, userId]
+      );
+      return {
+        id,
+        userId,
+        points: 0,
+        tier: 'Bronze',
+        totalBookings: 0,
+        totalSpent: 0,
+        memberSince: new Date()
+      };
+    }
+    const row = rewards[0];
+    return {
+      id: row.id,
+      userId: row.user_id,
+      points: row.points,
+      tier: row.tier,
+      totalBookings: row.total_bookings,
+      totalSpent: parseFloat(row.total_spent),
+      memberSince: row.member_since
+    };
+  }
+
+  async updateUserRewards(userId: string, updates: any): Promise<any> {
+    const current = await this.getUserRewards(userId);
+    const newPoints = updates.points ?? current.points;
+    const newTotalBookings = updates.totalBookings ?? current.totalBookings;
+    const newTotalSpent = updates.totalSpent ?? current.totalSpent;
+    
+    // Determine tier based on points
+    let tier = 'Bronze';
+    if (newPoints >= 50000) tier = 'Platinum';
+    else if (newPoints >= 20000) tier = 'Gold';
+    else if (newPoints >= 5000) tier = 'Silver';
+    
+    await pool.query(
+      `UPDATE user_rewards SET points = ?, tier = ?, total_bookings = ?, total_spent = ? WHERE user_id = ?`,
+      [newPoints, tier, newTotalBookings, newTotalSpent, userId]
+    );
+    return { ...current, points: newPoints, tier, totalBookings: newTotalBookings, totalSpent: newTotalSpent };
+  }
+
+  async addRewardPoints(userId: string, points: number, type: string, description: string, bookingId?: string): Promise<any> {
+    const current = await this.getUserRewards(userId);
+    const newPoints = current.points + points;
+    
+    // Add transaction record
+    const txId = `rtx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    await pool.query(
+      `INSERT INTO reward_transactions (id, user_id, points, type, description, booking_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [txId, userId, points, type, description, bookingId || null]
+    );
+    
+    return this.updateUserRewards(userId, { points: newPoints });
+  }
+
+  async getRewardTransactions(userId: string): Promise<any[]> {
+    const [rows] = await pool.query(
+      "SELECT * FROM reward_transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 50",
+      [userId]
+    );
+    return (rows as any[]).map(row => ({
+      id: row.id,
+      userId: row.user_id,
+      points: row.points,
+      type: row.type,
+      description: row.description,
+      bookingId: row.booking_id,
+      createdAt: row.created_at
+    }));
+  }
+
+  // Get review statistics for an item (average rating and count)
+  async getItemReviewStats(itemId: string, itemType: string): Promise<{ averageRating: number; reviewCount: number }> {
+    const [rows] = await pool.query(
+      `SELECT AVG(rating) as avg_rating, COUNT(*) as review_count 
+       FROM reviews 
+       WHERE item_id = ? AND item_type = ? AND status = 'approved'`,
+      [itemId, itemType]
+    );
+    const result = (rows as any[])[0];
+    return {
+      averageRating: result.avg_rating ? parseFloat(result.avg_rating).toFixed(1) as any : 0,
+      reviewCount: parseInt(result.review_count) || 0
+    };
+  }
 }
 
 export const storage = new MySQLStorage();

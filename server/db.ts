@@ -344,6 +344,47 @@ export async function initializeDatabase() {
       await connection.query(`ALTER TABLE site_settings ADD COLUMN default_currency VARCHAR(10) DEFAULT 'EUR'`);
     } catch (e) {}
 
+    // User payment methods table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS user_payment_methods (
+        id VARCHAR(36) PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL,
+        card_brand VARCHAR(50) NOT NULL,
+        last4 VARCHAR(4) NOT NULL,
+        expiry VARCHAR(10) NOT NULL,
+        cardholder_name VARCHAR(255) NOT NULL,
+        is_default BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // User rewards/loyalty table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS user_rewards (
+        id VARCHAR(36) PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL UNIQUE,
+        points INT DEFAULT 0,
+        tier VARCHAR(50) DEFAULT 'Bronze',
+        total_bookings INT DEFAULT 0,
+        total_spent DECIMAL(10,2) DEFAULT 0,
+        member_since TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Reward transactions history
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS reward_transactions (
+        id VARCHAR(36) PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL,
+        points INT NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        description VARCHAR(255),
+        booking_id VARCHAR(36),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     console.log("✅ Database tables initialized");
   } finally {
     connection.release();

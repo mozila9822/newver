@@ -1044,5 +1044,102 @@ export async function registerRoutes(
     }
   });
 
+  // ============== USER PAYMENT METHODS ==============
+  app.get("/api/users/:userId/payment-methods", async (req, res) => {
+    try {
+      const methods = await storage.getUserPaymentMethods(req.params.userId);
+      res.json(methods);
+    } catch (error) {
+      console.error("Error fetching payment methods:", error);
+      res.status(500).json({ message: "Failed to fetch payment methods" });
+    }
+  });
+
+  app.post("/api/users/:userId/payment-methods", async (req, res) => {
+    try {
+      const method = await storage.addUserPaymentMethod(req.params.userId, req.body);
+      res.json(method);
+    } catch (error) {
+      console.error("Error adding payment method:", error);
+      res.status(500).json({ message: "Failed to add payment method" });
+    }
+  });
+
+  app.delete("/api/users/:userId/payment-methods/:cardId", async (req, res) => {
+    try {
+      const deleted = await storage.deleteUserPaymentMethod(req.params.userId, req.params.cardId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Payment method not found" });
+      }
+      res.json({ message: "Payment method deleted" });
+    } catch (error) {
+      console.error("Error deleting payment method:", error);
+      res.status(500).json({ message: "Failed to delete payment method" });
+    }
+  });
+
+  app.put("/api/users/:userId/payment-methods/:cardId/default", async (req, res) => {
+    try {
+      const updated = await storage.setDefaultPaymentMethod(req.params.userId, req.params.cardId);
+      res.json({ success: updated });
+    } catch (error) {
+      console.error("Error setting default payment method:", error);
+      res.status(500).json({ message: "Failed to set default payment method" });
+    }
+  });
+
+  // ============== USER REWARDS ==============
+  app.get("/api/users/:userId/rewards", async (req, res) => {
+    try {
+      const rewards = await storage.getUserRewards(req.params.userId);
+      res.json(rewards);
+    } catch (error) {
+      console.error("Error fetching rewards:", error);
+      res.status(500).json({ message: "Failed to fetch rewards" });
+    }
+  });
+
+  app.put("/api/users/:userId/rewards", async (req, res) => {
+    try {
+      const updated = await storage.updateUserRewards(req.params.userId, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating rewards:", error);
+      res.status(500).json({ message: "Failed to update rewards" });
+    }
+  });
+
+  app.post("/api/users/:userId/rewards/add-points", async (req, res) => {
+    try {
+      const { points, type, description, bookingId } = req.body;
+      const result = await storage.addRewardPoints(req.params.userId, points, type, description, bookingId);
+      res.json(result);
+    } catch (error) {
+      console.error("Error adding reward points:", error);
+      res.status(500).json({ message: "Failed to add reward points" });
+    }
+  });
+
+  app.get("/api/users/:userId/rewards/transactions", async (req, res) => {
+    try {
+      const transactions = await storage.getRewardTransactions(req.params.userId);
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching reward transactions:", error);
+      res.status(500).json({ message: "Failed to fetch reward transactions" });
+    }
+  });
+
+  // ============== REVIEW STATS ==============
+  app.get("/api/review-stats/:itemType/:itemId", async (req, res) => {
+    try {
+      const stats = await storage.getItemReviewStats(req.params.itemId, req.params.itemType);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching review stats:", error);
+      res.status(500).json({ message: "Failed to fetch review stats" });
+    }
+  });
+
   return httpServer;
 }

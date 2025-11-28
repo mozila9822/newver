@@ -90,6 +90,27 @@ export interface PaymentCard {
   brand: string;
   expiry: string;
   cardholderName: string;
+  isDefault?: boolean;
+}
+
+export interface UserRewards {
+  id: string;
+  userId: string;
+  points: number;
+  tier: "Bronze" | "Silver" | "Gold" | "Platinum";
+  totalBookings: number;
+  totalSpent: number;
+  memberSince: string;
+}
+
+export interface RewardTransaction {
+  id: string;
+  userId: string;
+  points: number;
+  type: string;
+  description: string;
+  bookingId?: string;
+  createdAt: string;
 }
 
 export interface RewardLevel {
@@ -196,8 +217,15 @@ interface StoreContextType {
   userProfile: UserProfile;
   updateUserProfile: (data: Partial<UserProfile>) => void;
   paymentCards: PaymentCard[];
-  addPaymentCard: (card: PaymentCard) => void;
-  deletePaymentCard: (id: string) => void;
+  addPaymentCard: (card: PaymentCard, userId: string) => Promise<PaymentCard | null>;
+  deletePaymentCard: (id: string, userId: string) => Promise<boolean>;
+  fetchPaymentCards: (userId: string) => Promise<void>;
+  userRewards: UserRewards | null;
+  rewardTransactions: RewardTransaction[];
+  fetchUserRewards: (userId: string) => Promise<void>;
+  fetchRewardTransactions: (userId: string) => Promise<void>;
+  addRewardPoints: (userId: string, points: number, type: string, description: string, bookingId?: string) => Promise<UserRewards | null>;
+  detectedCurrency: string;
   userTickets: SupportTicket[];
   allTickets: SupportTicket[];
   fetchUserTickets: (userEmail: string) => Promise<void>;
@@ -339,7 +367,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Load footer and settings from localStorage
   const [footer, setFooter] = useState<FooterData>(() => getStoredData(FOOTER_STORAGE_KEY, initialFooter));
   const [userProfile, setUserProfile] = useState<UserProfile>(initialUserProfile);
-  const [paymentCards, setPaymentCards] = useState<PaymentCard[]>(initialPaymentCards);
+  const [paymentCards, setPaymentCards] = useState<PaymentCard[]>([]);
+  const [userRewards, setUserRewards] = useState<UserRewards | null>(null);
+  const [rewardTransactions, setRewardTransactions] = useState<RewardTransaction[]>([]);
+  const [detectedCurrency, setDetectedCurrency] = useState<string>("EUR");
   const [userTickets, setUserTickets] = useState<SupportTicket[]>([]);
   const [allTickets, setAllTickets] = useState<SupportTicket[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -429,7 +460,44 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchData();
+    detectUserCurrency();
   }, []);
+
+  // Detect user's country and set appropriate currency
+  const detectUserCurrency = async () => {
+    try {
+      // Use free IP geolocation API
+      const res = await fetch('https://ipapi.co/json/');
+      if (res.ok) {
+        const data = await res.json();
+        const countryCurrency = getCountryCurrency(data.country_code);
+        if (countryCurrency) {
+          setDetectedCurrency(countryCurrency);
+        }
+      }
+    } catch (error) {
+      console.log('Could not detect user location, using default currency');
+    }
+  };
+
+  // Map country codes to currencies
+  const getCountryCurrency = (countryCode: string): string => {
+    const currencyMap: Record<string, string> = {
+      // Eurozone countries
+      AT: 'EUR', BE: 'EUR', CY: 'EUR', EE: 'EUR', FI: 'EUR', FR: 'EUR',
+      DE: 'EUR', GR: 'EUR', IE: 'EUR', IT: 'EUR', LV: 'EUR', LT: 'EUR',
+      LU: 'EUR', MT: 'EUR', NL: 'EUR', PT: 'EUR', SK: 'EUR', SI: 'EUR',
+      ES: 'EUR', HR: 'EUR',
+      // Other major currencies
+      US: 'USD', CA: 'CAD', GB: 'GBP', AU: 'AUD', NZ: 'NZD',
+      JP: 'JPY', CN: 'CNY', CH: 'CHF', SE: 'SEK', NO: 'NOK', DK: 'DKK',
+      IN: 'INR', BR: 'BRL', MX: 'MXN', KR: 'KRW', SG: 'SGD', HK: 'HKD',
+      TH: 'THB', MY: 'MYR', PH: 'PHP', ID: 'IDR', VN: 'VND',
+      AE: 'AED', SA: 'SAR', ZA: 'ZAR', RU: 'RUB', TR: 'TRY', PL: 'PLN',
+      CZ: 'CZK', HU: 'HUF', RO: 'RON', BG: 'BGN',
+    };
+    return currencyMap[countryCode] || 'EUR';
+  };
 
   const refetchData = () => {
     fetchData();
@@ -741,12 +809,94 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setUserProfile(prev => ({ ...prev, ...data }));
   };
   
-  const addPaymentCard = (card: PaymentCard) => {
-    setPaymentCards([...paymentCards, card]);
+  // ============== PAYMENT METHODS (API-based) ==============
+  const fetchPaymentCards = async (userId: string): Promise<void> => {
+    try {
+      const res = await fetch(`/api/users/${encodeURIComponent(userId)}/payment-methods`);
+      if (res.ok) {
+        const cards = await res.json();
+        setPaymentCards(cards);
+      }
+    } catch (error) {
+      console.error('Error fetching payment cards:', error);
+    }
+  };
+
+  const addPaymentCard = async (card: PaymentCard, userId: string): Promise<PaymentCard | null> => {
+    try {
+      const res = await fetch(`/api/users/${encodeURIComponent(userId)}/payment-methods`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(card)
+      });
+      if (res.ok) {
+        const newCard = await res.json();
+        setPaymentCards(prev => [...prev, newCard]);
+        return newCard;
+      }
+    } catch (error) {
+      console.error('Error adding payment card:', error);
+    }
+    return null;
   };
   
-  const deletePaymentCard = (id: string) => {
-    setPaymentCards(paymentCards.filter(c => c.id !== id));
+  const deletePaymentCard = async (id: string, userId: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/users/${encodeURIComponent(userId)}/payment-methods/${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setPaymentCards(prev => prev.filter(c => c.id !== id));
+        return true;
+      }
+    } catch (error) {
+      console.error('Error deleting payment card:', error);
+    }
+    return false;
+  };
+
+  // ============== USER REWARDS (API-based) ==============
+  const fetchUserRewards = async (userId: string): Promise<void> => {
+    try {
+      const res = await fetch(`/api/users/${encodeURIComponent(userId)}/rewards`);
+      if (res.ok) {
+        const rewards = await res.json();
+        setUserRewards(rewards);
+      }
+    } catch (error) {
+      console.error('Error fetching user rewards:', error);
+    }
+  };
+
+  const fetchRewardTransactions = async (userId: string): Promise<void> => {
+    try {
+      const res = await fetch(`/api/users/${encodeURIComponent(userId)}/rewards/transactions`);
+      if (res.ok) {
+        const transactions = await res.json();
+        setRewardTransactions(transactions);
+      }
+    } catch (error) {
+      console.error('Error fetching reward transactions:', error);
+    }
+  };
+
+  const addRewardPoints = async (userId: string, points: number, type: string, description: string, bookingId?: string): Promise<UserRewards | null> => {
+    try {
+      const res = await fetch(`/api/users/${encodeURIComponent(userId)}/rewards/add-points`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ points, type, description, bookingId })
+      });
+      if (res.ok) {
+        const updatedRewards = await res.json();
+        setUserRewards(updatedRewards);
+        await fetchRewardTransactions(userId);
+        return updatedRewards;
+      }
+    } catch (error) {
+      console.error('Error adding reward points:', error);
+    }
+    return null;
   };
   
   // ============== SUPPORT TICKETS ==============
@@ -1013,7 +1163,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addCar, updateCar, deleteCar,
       addOffer, updateOffer, deleteOffer,
       deleteItem, updateFooter, updateFooterLink,
-      userProfile, updateUserProfile, paymentCards, addPaymentCard, deletePaymentCard, userTickets, allTickets, fetchUserTickets, fetchAllTickets, createTicket, replyToTicket, replyToTicketAsAdmin, updateTicketStatus,
+      userProfile, updateUserProfile, paymentCards, addPaymentCard, deletePaymentCard, fetchPaymentCards,
+      userRewards, rewardTransactions, fetchUserRewards, fetchRewardTransactions, addRewardPoints, detectedCurrency,
+      userTickets, allTickets, fetchUserTickets, fetchAllTickets, createTicket, replyToTicket, replyToTicketAsAdmin, updateTicketStatus,
       bookings, addBooking, updateBooking, updatePaymentStatus, deleteBooking, reviews, addReview, updateReview, updateReviewStatus, deleteReview, getReviewsByItem, getApprovedReviewsByItem, getReviewCount,
       websiteSettings, updateWebsiteSettings, refetchData
     }}>

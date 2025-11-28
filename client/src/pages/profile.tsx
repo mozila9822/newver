@@ -36,7 +36,8 @@ export default function ProfilePage() {
   const { user, logout } = useAuth();
   const { 
     userProfile, updateUserProfile, 
-    paymentCards, addPaymentCard, deletePaymentCard,
+    paymentCards, addPaymentCard, deletePaymentCard, fetchPaymentCards,
+    userRewards, rewardTransactions, fetchUserRewards, fetchRewardTransactions,
     userTickets, fetchUserTickets, createTicket, replyToTicket,
     bookings, updateBooking, reviews, addReview, updateReview,
     trips, hotels, cars, offers
@@ -78,6 +79,15 @@ export default function ProfilePage() {
     }
   }, [user?.email, activeTab]);
 
+  // Fetch payment cards and rewards when user is available
+  useEffect(() => {
+    if (user?.email) {
+      fetchPaymentCards(user.email);
+      fetchUserRewards(user.email);
+      fetchRewardTransactions(user.email);
+    }
+  }, [user?.email]);
+
   if (!user) {
     setLocation("/login");
     return null;
@@ -91,17 +101,21 @@ export default function ProfilePage() {
     });
   };
 
-  const handleAddCard = () => {
-    if (newCard.last4 && newCard.expiry && newCard.cardholderName) {
-      addPaymentCard({
+  const handleAddCard = async () => {
+    if (newCard.last4 && newCard.expiry && newCard.cardholderName && user?.email) {
+      const result = await addPaymentCard({
         id: `card_${Date.now()}`,
         last4: newCard.last4,
         brand: newCard.brand || "Visa",
         expiry: newCard.expiry,
         cardholderName: newCard.cardholderName
-      });
-      setNewCard({ brand: "Visa", cardholderName: "" });
-      toast({ title: "Card Added", description: "Your payment method has been added." });
+      }, user.email);
+      if (result) {
+        setNewCard({ brand: "Visa", cardholderName: "" });
+        toast({ title: "Card Added", description: "Your payment method has been saved." });
+      } else {
+        toast({ title: "Error", description: "Failed to save payment method.", variant: "destructive" });
+      }
     }
   };
 
@@ -662,7 +676,14 @@ export default function ProfilePage() {
                             variant="destructive" 
                             size="icon" 
                             className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => deletePaymentCard(card.id)}
+                            onClick={async () => {
+                              if (user?.email) {
+                                const deleted = await deletePaymentCard(card.id, user.email);
+                                if (deleted) {
+                                  toast({ title: "Card Removed", description: "Payment method has been deleted." });
+                                }
+                              }
+                            }}
                           >
                             <Trash className="w-4 h-4" />
                           </Button>
@@ -685,78 +706,117 @@ export default function ProfilePage() {
                     <p className="text-muted-foreground">Your status level and exclusive benefits.</p>
                   </div>
 
-                  <Card className="bg-gradient-to-r from-amber-200 to-yellow-400 border-none shadow-lg text-yellow-950 overflow-hidden relative">
-                    <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-white/20 to-transparent"></div>
-                    <CardContent className="p-8 relative z-10">
-                      <div className="flex justify-between items-start mb-8">
-                        <div>
-                          <h2 className="text-3xl font-serif font-bold mb-1">{userProfile.reward.level} Status</h2>
-                          <p className="opacity-80 font-medium">Member since 2023</p>
-                        </div>
-                        <Award className="w-16 h-16 opacity-80" />
-                      </div>
-                      
-                      <div className="space-y-2 mb-6">
-                        <div className="flex justify-between text-sm font-bold">
-                          <span>{userProfile.reward.points.toLocaleString()} Points</span>
-                          <span>{userProfile.reward.nextLevelPoints.toLocaleString()} Goal</span>
-                        </div>
-                        <div className="h-3 bg-black/10 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-yellow-950/80 rounded-full" 
-                            style={{ width: `${(userProfile.reward.points / userProfile.reward.nextLevelPoints) * 100}%` }}
-                          ></div>
-                        </div>
-                        <p className="text-xs opacity-70 pt-1">
-                          You need {(userProfile.reward.nextLevelPoints - userProfile.reward.points).toLocaleString()} more points to reach Platinum status.
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {(() => {
+                    const tier = userRewards?.tier || 'Bronze';
+                    const points = userRewards?.points || 0;
+                    const nextTierPoints = tier === 'Bronze' ? 5000 : tier === 'Silver' ? 20000 : tier === 'Gold' ? 50000 : 100000;
+                    const nextTier = tier === 'Bronze' ? 'Silver' : tier === 'Silver' ? 'Gold' : tier === 'Gold' ? 'Platinum' : 'Elite';
+                    const tierColors = {
+                      Bronze: 'from-amber-600 to-orange-700 text-orange-100',
+                      Silver: 'from-slate-400 to-slate-600 text-slate-100',
+                      Gold: 'from-amber-200 to-yellow-400 text-yellow-950',
+                      Platinum: 'from-slate-200 to-slate-400 text-slate-900'
+                    };
+                    const tierBenefits: Record<string, string[]> = {
+                      Bronze: ['Welcome bonus points', 'Birthday rewards', 'Member-only deals'],
+                      Silver: ['Priority Check-in', '5% Booking Discount', 'Early Access to Sales'],
+                      Gold: ['Priority Check-in', 'Free Room Upgrade', 'Late Checkout', 'Welcome Gift'],
+                      Platinum: ['Dedicated 24/7 Concierge', 'Complimentary Airport Transfers', 'Exclusive Event Access', 'VIP Lounge Access']
+                    };
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Shield className="w-5 h-5 text-primary" /> Current Benefits
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ul className="space-y-3">
-                          {userProfile.reward.benefits.map((benefit, i) => (
-                            <li key={i} className="flex items-center gap-3">
-                              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-                              <span>{benefit}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </CardContent>
-                    </Card>
+                    return (
+                      <>
+                        <Card className={`bg-gradient-to-r ${tierColors[tier]} border-none shadow-lg overflow-hidden relative`}>
+                          <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-white/20 to-transparent"></div>
+                          <CardContent className="p-8 relative z-10">
+                            <div className="flex justify-between items-start mb-8">
+                              <div>
+                                <h2 className="text-3xl font-serif font-bold mb-1">{tier} Status</h2>
+                                <p className="opacity-80 font-medium">
+                                  Member since {userRewards?.memberSince ? new Date(userRewards.memberSince).getFullYear() : new Date().getFullYear()}
+                                </p>
+                              </div>
+                              <Award className="w-16 h-16 opacity-80" />
+                            </div>
+                            
+                            <div className="space-y-2 mb-6">
+                              <div className="flex justify-between text-sm font-bold">
+                                <span>{points.toLocaleString()} Points</span>
+                                <span>{nextTierPoints.toLocaleString()} Goal</span>
+                              </div>
+                              <div className="h-3 bg-black/10 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-current opacity-80 rounded-full" 
+                                  style={{ width: `${Math.min((points / nextTierPoints) * 100, 100)}%` }}
+                                ></div>
+                              </div>
+                              <p className="text-xs opacity-70 pt-1">
+                                {points >= nextTierPoints 
+                                  ? `You've reached the maximum tier!`
+                                  : `You need ${(nextTierPoints - points).toLocaleString()} more points to reach ${nextTier} status.`
+                                }
+                              </p>
+                            </div>
 
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Award className="w-5 h-5 text-primary" /> Next Level: Platinum
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ul className="space-y-3 text-muted-foreground">
-                          <li className="flex items-center gap-3">
-                            <div className="w-5 h-5 rounded-full border-2 border-muted flex items-center justify-center text-[10px]"></div>
-                            <span>Dedicated 24/7 Concierge</span>
-                          </li>
-                          <li className="flex items-center gap-3">
-                            <div className="w-5 h-5 rounded-full border-2 border-muted flex items-center justify-center text-[10px]"></div>
-                            <span>Complimentary Airport Transfers</span>
-                          </li>
-                          <li className="flex items-center gap-3">
-                            <div className="w-5 h-5 rounded-full border-2 border-muted flex items-center justify-center text-[10px]"></div>
-                            <span>Exclusive Event Access</span>
-                          </li>
-                        </ul>
-                      </CardContent>
-                    </Card>
-                  </div>
+                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-current/20">
+                              <div>
+                                <div className="text-2xl font-bold">{userRewards?.totalBookings || 0}</div>
+                                <div className="text-xs opacity-70">Total Bookings</div>
+                              </div>
+                              <div>
+                                <div className="text-2xl font-bold">${(userRewards?.totalSpent || 0).toLocaleString()}</div>
+                                <div className="text-xs opacity-70">Total Spent</div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="flex items-center gap-2">
+                                <Shield className="w-5 h-5 text-primary" /> Current Benefits
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <ul className="space-y-3">
+                                {tierBenefits[tier].map((benefit, i) => (
+                                  <li key={i} className="flex items-center gap-3">
+                                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                                    <span>{benefit}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </CardContent>
+                          </Card>
+
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="flex items-center gap-2">
+                                <Award className="w-5 h-5 text-primary" /> Recent Activity
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              {rewardTransactions.length > 0 ? (
+                                <ul className="space-y-3">
+                                  {rewardTransactions.slice(0, 5).map((tx) => (
+                                    <li key={tx.id} className="flex items-center justify-between text-sm">
+                                      <span className="text-muted-foreground">{tx.description}</span>
+                                      <span className={tx.points >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                                        {tx.points >= 0 ? '+' : ''}{tx.points}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="text-muted-foreground text-sm">No recent transactions. Book your first trip to earn points!</p>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               )}
 
