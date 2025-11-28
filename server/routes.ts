@@ -1,18 +1,12 @@
 import type { Express } from "express";
 import { type Server } from "http";
 import { storage } from "./storage";
-import { testConnection, initializeDatabase } from "./db";
 import { stripe, convertPriceToCents } from "./stripe";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Test database connection on startup
-  await testConnection();
-  // Initialize database tables (creates tables if they don't exist)
-  await initializeDatabase();
-
   // API Routes - prefix all routes with /api
 
   // ============== TRIPS ==============
