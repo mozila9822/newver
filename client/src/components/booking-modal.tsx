@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Check, Lock, User, CreditCard, Building2 } from "lucide-react";
+import { Calendar as CalendarIcon, Check, Lock, User, CreditCard, Building2, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { useStore } from "@/lib/store-context";
@@ -16,6 +16,12 @@ import { Link } from "wouter";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
 import StripePaymentForm from "./stripe-payment-form";
+
+interface PaymentOption {
+  provider: string;
+  name: string;
+  bankDetails?: any;
+}
 
 // Initialize Stripe - Will be loaded from database
 let stripePromiseInstance: Promise<any> | null = null;
@@ -103,17 +109,59 @@ export default function BookingModal({ isOpen, onClose, itemTitle, itemPrice, su
   const [step, setStep] = useState(1);
   
   // Payment state
-  const [paymentMethod, setPaymentMethod] = useState<"saved" | "new" | "bank_transfer">("new");
+  const [paymentMethod, setPaymentMethod] = useState<"saved" | "stripe" | "paypal" | "bank_transfer">("stripe");
   const [selectedCardId, setSelectedCardId] = useState<string>("");
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
-  const [bankTransferDetails, setBankTransferDetails] = useState<any>(null);
+  const [availablePaymentMethods, setAvailablePaymentMethods] = useState<PaymentOption[]>([]);
+  const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(true);
 
   // Form fields
   const [formData, setFormData] = useState({
     name: "",
     email: ""
   });
+
+  // Fetch available payment methods when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchPaymentOptions();
+    }
+  }, [isOpen]);
+
+  const fetchPaymentOptions = async () => {
+    setLoadingPaymentMethods(true);
+    try {
+      const res = await fetch('/api/payment-options');
+      if (res.ok) {
+        const methods = await res.json();
+        setAvailablePaymentMethods(methods);
+        
+        // Set default payment method based on what's available
+        if (methods.length > 0) {
+          const hasStripe = methods.some((m: PaymentOption) => m.provider === 'stripe');
+          const hasPaypal = methods.some((m: PaymentOption) => m.provider === 'paypal');
+          const hasBankTransfer = methods.some((m: PaymentOption) => m.provider === 'bank_transfer');
+          
+          // If user has saved cards and Stripe is enabled, default to saved
+          if (paymentCards.length > 0 && hasStripe) {
+            setPaymentMethod("saved");
+            setSelectedCardId(paymentCards[0].id);
+          } else if (hasStripe) {
+            setPaymentMethod("stripe");
+          } else if (hasPaypal) {
+            setPaymentMethod("paypal");
+          } else if (hasBankTransfer) {
+            setPaymentMethod("bank_transfer");
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to fetch payment options:', error);
+    } finally {
+      setLoadingPaymentMethods(false);
+    }
+  };
 
   // Pre-fill user data when modal opens or user changes
   useEffect(() => {
@@ -122,43 +170,17 @@ export default function BookingModal({ isOpen, onClose, itemTitle, itemPrice, su
         name: user.name || "",
         email: user.email || ""
       });
-      
-      // Default to saved card if available
-      if (paymentCards.length > 0) {
-        setPaymentMethod("saved");
-        setSelectedCardId(paymentCards[0].id);
-      }
     }
-  }, [user, isOpen, paymentCards]);
+  }, [user, isOpen]);
 
-  // Fetch bank transfer details when modal opens
+  // Create payment intent when user selects Stripe payment method
+  // Only create if Stripe is actually available
   useEffect(() => {
-    if (isOpen) {
-      fetchBankTransferDetails();
-    }
-  }, [isOpen]);
-
-  const fetchBankTransferDetails = async () => {
-    try {
-      const res = await fetch('/api/payment-settings/bank_transfer');
-      if (res.ok) {
-        const settings = await res.json();
-        if (settings.enabled) {
-          setBankTransferDetails(settings);
-        }
-      }
-    } catch (error) {
-      // Silently fail - bank transfer might not be configured
-      console.warn('Bank transfer settings not available:', error);
-    }
-  };
-
-  // Create payment intent when user selects new payment method
-  useEffect(() => {
-    if (paymentMethod === "new" && !clientSecret && isOpen) {
+    const stripeEnabled = availablePaymentMethods.some(m => m.provider === 'stripe');
+    if (paymentMethod === "stripe" && !clientSecret && isOpen && stripeEnabled && !loadingPaymentMethods) {
       createPaymentIntent();
     }
-  }, [paymentMethod, isOpen]);
+  }, [paymentMethod, isOpen, availablePaymentMethods, loadingPaymentMethods]);
 
   const createPaymentIntent = async () => {
     try {
@@ -273,7 +295,8 @@ export default function BookingModal({ isOpen, onClose, itemTitle, itemPrice, su
             item: itemTitle,
             date: date ? date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
             amount: itemPrice,
-            status: "Pending"
+            status: "Pending",
+            payment_method: "bank_transfer"
           })
         });
 
@@ -285,6 +308,48 @@ export default function BookingModal({ isOpen, onClose, itemTitle, itemPrice, su
           toast({
             title: "Booking Created",
             description: `Your booking is pending payment confirmation. Please complete the bank transfer using the details provided.`,
+          });
+        } else {
+          throw new Error('Failed to create booking');
+        }
+      } catch (error) {
+        toast({
+          title: "Booking Failed",
+          description: "There was an error creating your booking. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // If using PayPal, create booking with Pending status and show PayPal instructions
+    if (paymentMethod === "paypal") {
+      setIsSubmitting(true);
+      
+      try {
+        const response = await fetch('/api/bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customer: formData.name,
+            item: itemTitle,
+            date: date ? date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            amount: itemPrice,
+            status: "Pending",
+            payment_method: "paypal"
+          })
+        });
+
+        if (response.ok) {
+          const newBooking = await response.json();
+          setStep(2);
+          addBooking(newBooking);
+
+          toast({
+            title: "Booking Created",
+            description: `Your booking is pending PayPal payment confirmation. You will receive payment instructions via email.`,
           });
         } else {
           throw new Error('Failed to create booking');
@@ -314,7 +379,8 @@ export default function BookingModal({ isOpen, onClose, itemTitle, itemPrice, su
             item: itemTitle,
             date: date ? date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
             amount: itemPrice,
-            status: "Confirmed"
+            status: "Confirmed",
+            payment_method: "saved_card"
           })
         });
 
@@ -340,7 +406,7 @@ export default function BookingModal({ isOpen, onClose, itemTitle, itemPrice, su
         setIsSubmitting(false);
       }
     }
-    // For new card, payment will be handled by Stripe form
+    // For Stripe card payment, payment will be handled by Stripe form
   };
 
   const reset = () => {
@@ -348,8 +414,9 @@ export default function BookingModal({ isOpen, onClose, itemTitle, itemPrice, su
     setDate(undefined);
     setClientSecret(null);
     setPaymentIntentId(null);
-    setPaymentMethod("new");
-    setBankTransferDetails(null);
+    setPaymentMethod("stripe");
+    setAvailablePaymentMethods([]);
+    setLoadingPaymentMethods(true);
     onClose();
   };
 
@@ -454,143 +521,209 @@ export default function BookingModal({ isOpen, onClose, itemTitle, itemPrice, su
 
               <div className="pt-4 border-t border-border/50">
                 <Label className="mb-3 block">Payment Method</Label>
-                <RadioGroup 
-                  value={paymentMethod} 
-                  onValueChange={(v) => setPaymentMethod(v as "saved" | "new" | "bank_transfer")}
-                  className="flex flex-col gap-3"
-                >
-                    {paymentCards.length > 0 && (
+                
+                {loadingPaymentMethods ? (
+                  <div className="text-sm text-muted-foreground py-4 text-center">
+                    Loading payment options...
+                  </div>
+                ) : availablePaymentMethods.length === 0 ? (
+                  <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
+                    No payment methods are currently available. Please contact support.
+                  </div>
+                ) : (
+                  <RadioGroup 
+                    value={paymentMethod} 
+                    onValueChange={(v) => setPaymentMethod(v as "saved" | "stripe" | "paypal" | "bank_transfer")}
+                    className="flex flex-col gap-3"
+                  >
+                    {/* Saved Cards Option - only show if Stripe is enabled and user has saved cards */}
+                    {paymentCards.length > 0 && availablePaymentMethods.some(m => m.provider === 'stripe') && (
                       <>
-                        <div className="flex items-center space-x-2 border p-3 rounded-md cursor-pointer hover:bg-muted/20 transition-colors">
+                        <div className="flex items-center space-x-2 border p-3 rounded-md cursor-pointer hover:bg-muted/20 transition-colors" data-testid="payment-method-saved">
                           <RadioGroupItem value="saved" id="pm-saved" />
                           <Label htmlFor="pm-saved" className="flex items-center gap-2 cursor-pointer font-normal flex-1">
-                            <CreditCard className="w-4 h-4" /> Pay with saved card
+                            <CreditCard className="w-4 h-4 text-primary" /> Pay with saved card
                           </Label>
                         </div>
                         
                         {paymentMethod === "saved" && (
-                      <div className="pl-6 pr-2 pb-2 space-y-2">
-                        <RadioGroup 
-                          value={selectedCardId} 
-                          onValueChange={setSelectedCardId}
-                        >
-                          {paymentCards.map(card => (
-                            <div key={card.id} className="flex items-center justify-between p-2 rounded hover:bg-muted/30 text-sm">
-                              <div className="flex items-center gap-2">
-                                <RadioGroupItem value={card.id} id={card.id} />
-                                <Label htmlFor={card.id} className="font-normal cursor-pointer">
-                                  {card.brand} •••• {card.last4}
-                                </Label>
-                              </div>
-                              <span className="text-xs text-muted-foreground">{card.expiry}</span>
-                            </div>
-                          ))}
-                        </RadioGroup>
-                        </div>
-                      )}
+                          <div className="pl-6 pr-2 pb-2 space-y-2">
+                            <RadioGroup 
+                              value={selectedCardId} 
+                              onValueChange={setSelectedCardId}
+                            >
+                              {paymentCards.map(card => (
+                                <div key={card.id} className="flex items-center justify-between p-2 rounded hover:bg-muted/30 text-sm" data-testid={`saved-card-${card.id}`}>
+                                  <div className="flex items-center gap-2">
+                                    <RadioGroupItem value={card.id} id={card.id} />
+                                    <Label htmlFor={card.id} className="font-normal cursor-pointer">
+                                      {card.brand} •••• {card.last4}
+                                    </Label>
+                                  </div>
+                                  <span className="text-xs text-muted-foreground">{card.expiry}</span>
+                                </div>
+                              ))}
+                            </RadioGroup>
+                          </div>
+                        )}
                       </>
                     )}
 
-                    <div className="flex items-center space-x-2 border p-3 rounded-md cursor-pointer hover:bg-muted/20 transition-colors">
-                      <RadioGroupItem value="new" id="pm-new" />
-                      <Label htmlFor="pm-new" className="flex items-center gap-2 cursor-pointer font-normal flex-1">
-                        <CreditCard className="w-4 h-4 text-muted-foreground" /> Enter new card details
-                      </Label>
-                    </div>
-                    
-                    {paymentMethod === "new" && clientSecret && (
-                      <div className="pl-2 pt-2">
-                        <StripeElementsWrapper clientSecret={clientSecret}>
-                          <StripePaymentForm
-                            amount={itemPrice}
-                            onSuccess={handlePaymentSuccess}
-                            onError={handlePaymentError}
-                          />
-                        </StripeElementsWrapper>
-                      </div>
-                    )}
-                    {paymentMethod === "new" && !clientSecret && (
-                      <div className="pl-2 text-xs text-muted-foreground">
-                        Initializing secure payment form...
-                      </div>
-                    )}
-
-                    {bankTransferDetails && bankTransferDetails.enabled && (
-                      <div className="flex items-center space-x-2 border p-3 rounded-md cursor-pointer hover:bg-muted/20 transition-colors">
-                        <RadioGroupItem value="bank_transfer" id="pm-bank" />
-                        <Label htmlFor="pm-bank" className="flex items-center gap-2 cursor-pointer font-normal flex-1">
-                          <Building2 className="w-4 h-4 text-muted-foreground" /> Bank Transfer
-                        </Label>
-                      </div>
-                    )}
-
-                    {paymentMethod === "bank_transfer" && bankTransferDetails && (
-                      <div className="pl-2 pt-2 space-y-4 border rounded-md p-4 bg-muted/20">
-                        <div>
-                          <h4 className="font-semibold mb-3">Bank Transfer Details</h4>
-                          <div className="space-y-3 text-sm">
-                            {bankTransferDetails.additionalConfig?.bankName && (
-                              <div>
-                                <span className="font-medium text-muted-foreground">Bank Name:</span>
-                                <span className="ml-2">{bankTransferDetails.additionalConfig.bankName}</span>
-                              </div>
-                            )}
-                            {bankTransferDetails.additionalConfig?.accountHolderName && (
-                              <div>
-                                <span className="font-medium text-muted-foreground">Account Holder:</span>
-                                <span className="ml-2">{bankTransferDetails.additionalConfig.accountHolderName}</span>
-                              </div>
-                            )}
-                            {bankTransferDetails.additionalConfig?.accountNumber && (
-                              <div>
-                                <span className="font-medium text-muted-foreground">Account Number:</span>
-                                <span className="ml-2 font-mono">{bankTransferDetails.additionalConfig.accountNumber}</span>
-                              </div>
-                            )}
-                            {bankTransferDetails.additionalConfig?.routingNumber && (
-                              <div>
-                                <span className="font-medium text-muted-foreground">Routing Number:</span>
-                                <span className="ml-2 font-mono">{bankTransferDetails.additionalConfig.routingNumber}</span>
-                              </div>
-                            )}
-                            {bankTransferDetails.additionalConfig?.swiftCode && (
-                              <div>
-                                <span className="font-medium text-muted-foreground">SWIFT Code:</span>
-                                <span className="ml-2 font-mono">{bankTransferDetails.additionalConfig.swiftCode}</span>
-                              </div>
-                            )}
-                            {bankTransferDetails.additionalConfig?.bankAddress && (
-                              <div>
-                                <span className="font-medium text-muted-foreground">Bank Address:</span>
-                                <span className="ml-2">{bankTransferDetails.additionalConfig.bankAddress}</span>
-                              </div>
-                            )}
-                            {bankTransferDetails.additionalConfig?.instructions && (
-                              <div className="pt-2 border-t">
-                                <span className="font-medium text-muted-foreground block mb-1">Instructions:</span>
-                                <p className="text-xs text-muted-foreground whitespace-pre-line">
-                                  {bankTransferDetails.additionalConfig.instructions}
-                                </p>
-                              </div>
-                            )}
+                    {/* Stripe/Credit Card Option */}
+                    {availablePaymentMethods.some(m => m.provider === 'stripe') && (
+                      <>
+                        <div className="flex items-center space-x-2 border p-3 rounded-md cursor-pointer hover:bg-muted/20 transition-colors" data-testid="payment-method-stripe">
+                          <RadioGroupItem value="stripe" id="pm-stripe" />
+                          <Label htmlFor="pm-stripe" className="flex items-center gap-2 cursor-pointer font-normal flex-1">
+                            <CreditCard className="w-4 h-4 text-muted-foreground" /> Credit/Debit Card
+                          </Label>
+                        </div>
+                        
+                        {paymentMethod === "stripe" && clientSecret && (
+                          <div className="pl-2 pt-2">
+                            <StripeElementsWrapper clientSecret={clientSecret}>
+                              <StripePaymentForm
+                                amount={itemPrice}
+                                onSuccess={handlePaymentSuccess}
+                                onError={handlePaymentError}
+                              />
+                            </StripeElementsWrapper>
                           </div>
+                        )}
+                        {paymentMethod === "stripe" && !clientSecret && (
+                          <div className="pl-2 text-xs text-muted-foreground">
+                            Initializing secure payment form...
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {/* PayPal Option */}
+                    {availablePaymentMethods.some(m => m.provider === 'paypal') && (
+                      <>
+                        <div className="flex items-center space-x-2 border p-3 rounded-md cursor-pointer hover:bg-muted/20 transition-colors" data-testid="payment-method-paypal">
+                          <RadioGroupItem value="paypal" id="pm-paypal" />
+                          <Label htmlFor="pm-paypal" className="flex items-center gap-2 cursor-pointer font-normal flex-1">
+                            <Wallet className="w-4 h-4 text-blue-600" /> PayPal
+                          </Label>
                         </div>
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-xs text-yellow-800">
-                          <strong>Note:</strong> Please include your booking reference in the transfer memo. Your booking will be confirmed once payment is received.
+                        
+                        {paymentMethod === "paypal" && (
+                          <div className="pl-2 pt-2 space-y-3 border rounded-md p-4 bg-blue-50/50">
+                            <div className="flex items-center gap-2">
+                              <Wallet className="w-5 h-5 text-blue-600" />
+                              <span className="font-medium text-blue-800">Pay with PayPal</span>
+                            </div>
+                            <p className="text-sm text-blue-700">
+                              After confirming your booking, you will receive an email with PayPal payment instructions.
+                            </p>
+                            <div className="bg-blue-100 border border-blue-200 rounded-md p-3 text-xs text-blue-800">
+                              <strong>Secure Payment:</strong> Your booking will be confirmed once PayPal payment is received.
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {/* Bank Transfer Option */}
+                    {availablePaymentMethods.some(m => m.provider === 'bank_transfer') && (
+                      <>
+                        <div className="flex items-center space-x-2 border p-3 rounded-md cursor-pointer hover:bg-muted/20 transition-colors" data-testid="payment-method-bank">
+                          <RadioGroupItem value="bank_transfer" id="pm-bank" />
+                          <Label htmlFor="pm-bank" className="flex items-center gap-2 cursor-pointer font-normal flex-1">
+                            <Building2 className="w-4 h-4 text-muted-foreground" /> Bank Transfer
+                          </Label>
                         </div>
-                      </div>
+
+                        {paymentMethod === "bank_transfer" && (
+                          <div className="pl-2 pt-2 space-y-4 border rounded-md p-4 bg-muted/20">
+                            <div>
+                              <h4 className="font-semibold mb-3">Bank Transfer Details</h4>
+                              {(() => {
+                                const bankOption = availablePaymentMethods.find(m => m.provider === 'bank_transfer');
+                                const bankDetails = bankOption?.bankDetails;
+                                
+                                if (!bankDetails) {
+                                  return (
+                                    <p className="text-sm text-muted-foreground">
+                                      Bank transfer details will be sent to your email after booking.
+                                    </p>
+                                  );
+                                }
+                                
+                                return (
+                                  <div className="space-y-3 text-sm">
+                                    {bankDetails.bankName && (
+                                      <div>
+                                        <span className="font-medium text-muted-foreground">Bank Name:</span>
+                                        <span className="ml-2">{bankDetails.bankName}</span>
+                                      </div>
+                                    )}
+                                    {bankDetails.accountHolderName && (
+                                      <div>
+                                        <span className="font-medium text-muted-foreground">Account Holder:</span>
+                                        <span className="ml-2">{bankDetails.accountHolderName}</span>
+                                      </div>
+                                    )}
+                                    {bankDetails.accountNumber && (
+                                      <div>
+                                        <span className="font-medium text-muted-foreground">Account Number:</span>
+                                        <span className="ml-2 font-mono">{bankDetails.accountNumber}</span>
+                                      </div>
+                                    )}
+                                    {bankDetails.routingNumber && (
+                                      <div>
+                                        <span className="font-medium text-muted-foreground">Routing Number:</span>
+                                        <span className="ml-2 font-mono">{bankDetails.routingNumber}</span>
+                                      </div>
+                                    )}
+                                    {bankDetails.swiftCode && (
+                                      <div>
+                                        <span className="font-medium text-muted-foreground">SWIFT Code:</span>
+                                        <span className="ml-2 font-mono">{bankDetails.swiftCode}</span>
+                                      </div>
+                                    )}
+                                    {bankDetails.bankAddress && (
+                                      <div>
+                                        <span className="font-medium text-muted-foreground">Bank Address:</span>
+                                        <span className="ml-2">{bankDetails.bankAddress}</span>
+                                      </div>
+                                    )}
+                                    {bankDetails.instructions && (
+                                      <div className="pt-2 border-t">
+                                        <span className="font-medium text-muted-foreground block mb-1">Instructions:</span>
+                                        <p className="text-xs text-muted-foreground whitespace-pre-line">
+                                          {bankDetails.instructions}
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-xs text-yellow-800">
+                              <strong>Note:</strong> Please include your booking reference in the transfer memo. Your booking will be confirmed once payment is received.
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </RadioGroup>
-                </div>
+                )}
+              </div>
 
-              {(paymentMethod === "saved" || paymentMethod === "bank_transfer") && (
+              {/* Submit Button - show for saved card, paypal, or bank transfer */}
+              {(paymentMethod === "saved" || paymentMethod === "paypal" || paymentMethod === "bank_transfer") && !loadingPaymentMethods && (
                 <DialogFooter className="mt-6">
-                  <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white" disabled={isSubmitting}>
-                    {isSubmitting ? "Processing..." : paymentMethod === "bank_transfer" ? "Confirm Booking" : `Pay ${itemPrice} & Confirm`}
+                  <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white" disabled={isSubmitting} data-testid="button-confirm-booking">
+                    {isSubmitting ? "Processing..." : 
+                     paymentMethod === "bank_transfer" ? "Confirm Booking" : 
+                     paymentMethod === "paypal" ? "Confirm & Pay with PayPal" :
+                     `Pay ${itemPrice} & Confirm`}
                   </Button>
                 </DialogFooter>
               )}
-              {paymentMethod === "new" && !clientSecret && (
+              {paymentMethod === "stripe" && !clientSecret && !loadingPaymentMethods && (
                 <DialogFooter className="mt-6">
                   <Button type="button" className="w-full bg-primary hover:bg-primary/90 text-white" disabled>
                     Initializing Payment...

@@ -759,6 +759,26 @@ export async function registerRoutes(
     }
   });
 
+  // Public endpoint for checkout - returns only enabled payment methods
+  app.get("/api/payment-options", async (_req, res) => {
+    try {
+      const settings = await storage.getPaymentSettings();
+      const enabledMethods = settings
+        .filter((s: any) => s.enabled)
+        .map((s: any) => ({
+          provider: s.provider,
+          name: s.provider === 'stripe' ? 'Credit/Debit Card' :
+                s.provider === 'paypal' ? 'PayPal' :
+                s.provider === 'bank_transfer' ? 'Bank Transfer' : s.provider,
+          ...(s.provider === 'bank_transfer' && s.additionalConfig ? { bankDetails: s.additionalConfig } : {})
+        }));
+      res.json(enabledMethods);
+    } catch (error) {
+      console.error("Error fetching payment options:", error);
+      res.status(500).json({ message: "Failed to fetch payment options" });
+    }
+  });
+
   app.get("/api/payment-settings/:provider", async (req, res) => {
     try {
       const setting = await storage.getPaymentSettingByProvider(req.params.provider);
