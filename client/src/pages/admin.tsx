@@ -59,6 +59,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import GalleryEditor from "@/components/gallery-editor";
 
 // Email Template Form Component
 function EmailTemplateForm({ template, onSuccess, onClose }: { template?: any; onSuccess: () => void; onClose?: () => void }) {
@@ -465,13 +466,14 @@ export default function AdminDashboard() {
   const [editingTripId, setEditingTripId] = useState<string | null>(null);
   const [isCarDialogOpen, setIsCarDialogOpen] = useState(false);
   const [editingCarId, setEditingCarId] = useState<string | null>(null);
-  const [newTrip, setNewTrip] = useState({ title: "", price: "", location: "", image: "", rating: 5.0, duration: "", category: "", features: [] as string[] });
+  const [newTrip, setNewTrip] = useState({ title: "", price: "", location: "", image: "", gallery: [] as string[], rating: 5.0, duration: "", category: "", features: [] as string[] });
   const [tripImageFile, setTripImageFile] = useState<File | null>(null);
   const [newHotel, setNewHotel] = useState({ 
     title: "", 
     price: "", 
     location: "",
     image: "",
+    gallery: [] as string[],
     amenities: [] as string[],
     alwaysAvailable: true,
     isActive: true,
@@ -482,11 +484,11 @@ export default function AdminDashboard() {
   const [hotelImageFile, setHotelImageFile] = useState<File | null>(null);
   const [newRoomType, setNewRoomType] = useState({ name: "", price: "", facilities: [] as string[] });
   const [newFacility, setNewFacility] = useState("");
-  const [newCar, setNewCar] = useState({ title: "", price: "", location: "", image: "", rating: 5.0, specs: "", features: [] as string[] });
+  const [newCar, setNewCar] = useState({ title: "", price: "", location: "", image: "", gallery: [] as string[], rating: 5.0, specs: "", features: [] as string[] });
   const [carImageFile, setCarImageFile] = useState<File | null>(null);
   const [isOfferDialogOpen, setIsOfferDialogOpen] = useState(false);
   const [editingOfferId, setEditingOfferId] = useState<string | null>(null);
-  const [newOffer, setNewOffer] = useState({ title: "", price: "", originalPrice: "", location: "", image: "", rating: 5.0, endsIn: "", discount: "" });
+  const [newOffer, setNewOffer] = useState({ title: "", price: "", originalPrice: "", location: "", image: "", gallery: [] as string[], rating: 5.0, endsIn: "", discount: "" });
   const [offerImageFile, setOfferImageFile] = useState<File | null>(null);
 
   const availableTripFeatures = ["All Inclusive", "Flights Included", "Transfers", "Guided Tours", "Meals", "Insurance", "Luxury Car Rental", "5-Star Hotels"];
@@ -511,6 +513,7 @@ export default function AdminDashboard() {
       price: trip.price || "",
       location: trip.location || "",
       image: trip.image || "",
+      gallery: trip.gallery || [],
       rating: trip.rating || 5.0,
       duration: trip.duration || "",
       category: trip.category || "",
@@ -527,6 +530,7 @@ export default function AdminDashboard() {
       price: car.price || "",
       location: car.location || "",
       image: car.image || "",
+      gallery: car.gallery || [],
       rating: car.rating || 5.0,
       specs: car.specs || "",
       features: car.features || []
@@ -543,6 +547,7 @@ export default function AdminDashboard() {
       originalPrice: offer.originalPrice || "",
       location: offer.location || "",
       image: offer.image || "",
+      gallery: offer.gallery || [],
       rating: offer.rating || 5.0,
       endsIn: offer.endsIn || "",
       discount: offer.discount || ""
@@ -557,6 +562,7 @@ export default function AdminDashboard() {
       price: hotel.price,
       location: hotel.location,
       image: hotel.image || "",
+      gallery: hotel.gallery || [],
       amenities: hotel.amenities || [],
       alwaysAvailable: hotel.alwaysAvailable ?? true,
       isActive: hotel.isActive ?? true,
@@ -575,6 +581,7 @@ export default function AdminDashboard() {
       price: "", 
       location: "",
       image: "",
+      gallery: [],
       amenities: [],
       alwaysAvailable: true,
       isActive: true,
@@ -941,14 +948,14 @@ export default function AdminDashboard() {
                     setIsTripDialogOpen(open);
                     if (!open) {
                       setEditingTripId(null);
-                      setNewTrip({ title: "", price: "", location: "", image: "", rating: 5.0, duration: "", category: "", features: [] });
+                      setNewTrip({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, duration: "", category: "", features: [] });
                       setTripImageFile(null);
                     }
                   }}>
                      <DialogTrigger asChild>
                         <Button className="bg-primary text-white" onClick={() => {
                           setEditingTripId(null);
-                          setNewTrip({ title: "", price: "", location: "", image: "", rating: 5.0, duration: "", category: "", features: [] });
+                          setNewTrip({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, duration: "", category: "", features: [] });
                           setTripImageFile(null);
                         }}><Plus className="w-4 h-4 mr-2" /> Add Trip</Button>
                      </DialogTrigger>
@@ -1044,6 +1051,10 @@ export default function AdminDashboard() {
                                  ))}
                               </div>
                            </div>
+                           <GalleryEditor
+                              images={newTrip.gallery}
+                              onChange={(gallery) => setNewTrip({...newTrip, gallery})}
+                           />
                         </div>
                         <DialogFooter>
                            <Button onClick={async () => {
@@ -1054,6 +1065,7 @@ export default function AdminDashboard() {
                                     location: newTrip.location,
                                     price: newTrip.price,
                                     image: newTrip.image || "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=1000",
+                                    gallery: newTrip.gallery,
                                     rating: newTrip.rating,
                                     duration: newTrip.duration,
                                     category: newTrip.category,
@@ -1063,7 +1075,7 @@ export default function AdminDashboard() {
                                     toast({ title: "Trip Updated", description: "The trip has been updated in the database." });
                                     setIsTripDialogOpen(false);
                                     setEditingTripId(null);
-                                    setNewTrip({ title: "", price: "", location: "", image: "", rating: 5.0, duration: "", category: "", features: [] });
+                                    setNewTrip({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, duration: "", category: "", features: [] });
                                  } else {
                                     toast({ title: "Error", description: "Failed to update trip.", variant: "destructive" });
                                  }
@@ -1074,6 +1086,7 @@ export default function AdminDashboard() {
                                     location: newTrip.location || "Unknown",
                                     price: newTrip.price || "$0",
                                     image: newTrip.image || "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=1000",
+                                    gallery: newTrip.gallery,
                                     rating: newTrip.rating || 5.0,
                                     duration: newTrip.duration || "7 Days",
                                     category: newTrip.category || "New",
@@ -1082,7 +1095,7 @@ export default function AdminDashboard() {
                                  if (result) {
                                     toast({ title: "Trip Added", description: "The new trip has been saved to database." });
                                     setIsTripDialogOpen(false);
-                                    setNewTrip({ title: "", price: "", location: "", image: "", rating: 5.0, duration: "", category: "", features: [] });
+                                    setNewTrip({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, duration: "", category: "", features: [] });
                                  } else {
                                     toast({ title: "Error", description: "Failed to save trip.", variant: "destructive" });
                                  }
@@ -1452,6 +1465,10 @@ export default function AdminDashboard() {
                                  ))}
                               </div>
                            </div>
+                           <GalleryEditor
+                              images={newHotel.gallery}
+                              onChange={(gallery) => setNewHotel({...newHotel, gallery})}
+                           />
                         </div>
                         <DialogFooter>
                            <Button onClick={async () => {
@@ -1460,6 +1477,7 @@ export default function AdminDashboard() {
                                  location: newHotel.location || "Unknown",
                                  price: newHotel.price || "$0",
                                  image: newHotel.image || "https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=1000",
+                                 gallery: newHotel.gallery,
                                  rating: 5.0,
                                  amenities: newHotel.amenities,
                                  alwaysAvailable: newHotel.alwaysAvailable,
@@ -1491,7 +1509,7 @@ export default function AdminDashboard() {
                                  }
                               }
                               setIsHotelDialogOpen(false);
-                              setNewHotel({ title: "", price: "", location: "", image: "", amenities: [], alwaysAvailable: true, isActive: true, availableFrom: undefined, availableTo: undefined, roomTypes: [] });
+                              setNewHotel({ title: "", price: "", location: "", image: "", gallery: [], amenities: [], alwaysAvailable: true, isActive: true, availableFrom: undefined, availableTo: undefined, roomTypes: [] });
                            }}>{editingHotelId ? "Save Changes" : "Save Hotel"}</Button>
                         </DialogFooter>
                      </DialogContent>
@@ -1549,14 +1567,14 @@ export default function AdminDashboard() {
                     setIsCarDialogOpen(open);
                     if (!open) {
                       setEditingCarId(null);
-                      setNewCar({ title: "", price: "", location: "", image: "", rating: 5.0, specs: "", features: [] });
+                      setNewCar({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, specs: "", features: [] });
                       setCarImageFile(null);
                     }
                   }}>
                      <DialogTrigger asChild>
                         <Button className="bg-primary text-white" onClick={() => {
                           setEditingCarId(null);
-                          setNewCar({ title: "", price: "", location: "", image: "", rating: 5.0, specs: "", features: [] });
+                          setNewCar({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, specs: "", features: [] });
                           setCarImageFile(null);
                         }}><Plus className="w-4 h-4 mr-2" /> Add Car</Button>
                      </DialogTrigger>
@@ -1681,6 +1699,10 @@ export default function AdminDashboard() {
                                  ))}
                               </div>
                            </div>
+                           <GalleryEditor
+                              images={newCar.gallery}
+                              onChange={(gallery) => setNewCar({...newCar, gallery})}
+                           />
                         </div>
                         <DialogFooter>
                            <Button onClick={async () => {
@@ -1691,6 +1713,7 @@ export default function AdminDashboard() {
                                     location: newCar.location,
                                     price: newCar.price,
                                     image: newCar.image || "https://images.unsplash.com/photo-1555215695-3004980adade?q=80&w=1000",
+                                    gallery: newCar.gallery,
                                     rating: newCar.rating,
                                     specs: newCar.specs,
                                     features: newCar.features
@@ -1699,7 +1722,7 @@ export default function AdminDashboard() {
                                     toast({ title: "Vehicle Updated", description: "The vehicle has been updated in the database." });
                                     setIsCarDialogOpen(false);
                                     setEditingCarId(null);
-                                    setNewCar({ title: "", price: "", location: "", image: "", rating: 5.0, specs: "", features: [] });
+                                    setNewCar({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, specs: "", features: [] });
                                  } else {
                                     toast({ title: "Error", description: "Failed to update vehicle.", variant: "destructive" });
                                  }
@@ -1710,6 +1733,7 @@ export default function AdminDashboard() {
                                     location: newCar.location || "Unknown",
                                     price: newCar.price || "$0",
                                     image: newCar.image || "https://images.unsplash.com/photo-1555215695-3004980adade?q=80&w=1000",
+                                    gallery: newCar.gallery,
                                     rating: newCar.rating || 5.0,
                                     specs: newCar.specs || "Standard",
                                     features: newCar.features
@@ -1717,7 +1741,7 @@ export default function AdminDashboard() {
                                  if (result) {
                                     toast({ title: "Vehicle Added", description: "Vehicle saved to database." });
                                     setIsCarDialogOpen(false);
-                                    setNewCar({ title: "", price: "", location: "", image: "", rating: 5.0, specs: "", features: [] });
+                                    setNewCar({ title: "", price: "", location: "", image: "", gallery: [], rating: 5.0, specs: "", features: [] });
                                  } else {
                                     toast({ title: "Error", description: "Failed to save vehicle.", variant: "destructive" });
                                  }
@@ -1782,14 +1806,14 @@ export default function AdminDashboard() {
                     setIsOfferDialogOpen(open);
                     if (!open) {
                       setEditingOfferId(null);
-                      setNewOffer({ title: "", price: "", originalPrice: "", location: "", image: "", rating: 5.0, endsIn: "", discount: "" });
+                      setNewOffer({ title: "", price: "", originalPrice: "", location: "", image: "", gallery: [], rating: 5.0, endsIn: "", discount: "" });
                       setOfferImageFile(null);
                     }
                   }}>
                      <DialogTrigger asChild>
                         <Button className="bg-primary text-white" onClick={() => {
                           setEditingOfferId(null);
-                          setNewOffer({ title: "", price: "", originalPrice: "", location: "", image: "", rating: 5.0, endsIn: "", discount: "" });
+                          setNewOffer({ title: "", price: "", originalPrice: "", location: "", image: "", gallery: [], rating: 5.0, endsIn: "", discount: "" });
                           setOfferImageFile(null);
                         }}><Plus className="w-4 h-4 mr-2" /> Add Offer</Button>
                      </DialogTrigger>
@@ -1911,6 +1935,10 @@ export default function AdminDashboard() {
                                  )}
                               </div>
                            </div>
+                           <GalleryEditor
+                              images={newOffer.gallery}
+                              onChange={(gallery) => setNewOffer({...newOffer, gallery})}
+                           />
                         </div>
                         <DialogFooter>
                            <Button onClick={async () => {
@@ -1922,6 +1950,7 @@ export default function AdminDashboard() {
                                     price: newOffer.price,
                                     originalPrice: newOffer.originalPrice,
                                     image: newOffer.image || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1000",
+                                    gallery: newOffer.gallery,
                                     rating: newOffer.rating,
                                     endsIn: newOffer.endsIn,
                                     discount: newOffer.discount
@@ -1940,6 +1969,7 @@ export default function AdminDashboard() {
                                     price: newOffer.price || "$0",
                                     originalPrice: newOffer.originalPrice || "$0",
                                     image: newOffer.image || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1000",
+                                    gallery: newOffer.gallery,
                                     rating: newOffer.rating || 5.0,
                                     endsIn: newOffer.endsIn || "Limited Time",
                                     discount: newOffer.discount || "0% OFF"
