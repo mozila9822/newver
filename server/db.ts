@@ -48,6 +48,14 @@ export async function initializeDatabase() {
       )
     `);
 
+    // Add missing columns to trips table
+    try {
+      await connection.query(`ALTER TABLE trips ADD COLUMN gallery JSON`);
+    } catch (e) {}
+    try {
+      await connection.query(`ALTER TABLE trips ADD COLUMN meta_description TEXT`);
+    } catch (e) {}
+
     await connection.query(`
       CREATE TABLE IF NOT EXISTS hotels (
         id VARCHAR(36) PRIMARY KEY,
@@ -108,6 +116,14 @@ export async function initializeDatabase() {
       )
     `);
 
+    // Add missing columns to cars table
+    try {
+      await connection.query(`ALTER TABLE cars ADD COLUMN gallery JSON`);
+    } catch (e) {}
+    try {
+      await connection.query(`ALTER TABLE cars ADD COLUMN meta_description TEXT`);
+    } catch (e) {}
+
     await connection.query(`
       CREATE TABLE IF NOT EXISTS last_minute_offers (
         id VARCHAR(36) PRIMARY KEY,
@@ -122,6 +138,14 @@ export async function initializeDatabase() {
       )
     `);
 
+    // Add missing columns to last_minute_offers table
+    try {
+      await connection.query(`ALTER TABLE last_minute_offers ADD COLUMN gallery JSON`);
+    } catch (e) {}
+    try {
+      await connection.query(`ALTER TABLE last_minute_offers ADD COLUMN meta_description TEXT`);
+    } catch (e) {}
+
     await connection.query(`
       CREATE TABLE IF NOT EXISTS bookings (
         id VARCHAR(36) PRIMARY KEY,
@@ -132,6 +156,14 @@ export async function initializeDatabase() {
         amount VARCHAR(50)
       )
     `);
+
+    // Add missing columns to bookings table
+    try {
+      await connection.query(`ALTER TABLE bookings ADD COLUMN payment_status VARCHAR(50) DEFAULT 'Pending'`);
+    } catch (e) {}
+    try {
+      await connection.query(`ALTER TABLE bookings ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
+    } catch (e) {}
 
     await connection.query(`
       CREATE TABLE IF NOT EXISTS reviews (
