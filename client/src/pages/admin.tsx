@@ -268,6 +268,10 @@ export default function AdminDashboard() {
   };
 
   const updatePaymentSetting = async (provider: string, updates: any) => {
+    if (!provider) {
+      console.error('Provider is undefined, cannot update payment settings');
+      return false;
+    }
     try {
       const res = await fetch(`/api/payment-settings/${provider}`, {
         method: 'PUT',
@@ -275,8 +279,10 @@ export default function AdminDashboard() {
         body: JSON.stringify(updates)
       });
       if (res.ok) {
-        const updated = await res.json();
-        setPaymentSettings(prev => prev.map(s => s.provider === provider ? updated : s));
+        const updatedFields = await res.json();
+        setPaymentSettings(prev => prev.map(s => 
+          s.provider === provider ? { ...s, ...updatedFields } : s
+        ));
         toast({ title: "Payment Settings Updated", description: `${provider} settings have been saved.` });
         return true;
       }
@@ -3270,11 +3276,15 @@ export default function AdminDashboard() {
                                        </p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                       <Label htmlFor={`enable-${setting.provider}`}>Enable</Label>
+                                       <Label htmlFor={`enable-${setting.provider || setting.id}`}>Enable</Label>
                                        <Switch
-                                          id={`enable-${setting.provider}`}
-                                          checked={setting.enabled}
+                                          id={`enable-${setting.provider || setting.id}`}
+                                          checked={setting.enabled === true}
                                           onCheckedChange={(checked) => {
+                                             if (!setting.provider) {
+                                                console.error('Cannot update setting without provider');
+                                                return;
+                                             }
                                              const updated = { ...setting, enabled: checked };
                                              setPaymentSettings(prev => prev.map(s => s.id === setting.id ? updated : s));
                                              updatePaymentSetting(setting.provider, { enabled: checked });
