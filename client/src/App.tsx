@@ -15,6 +15,8 @@ import AdminDashboard from "@/pages/admin";
 import LastMinutePage from "@/pages/last-minute";
 import LoginPage from "@/pages/login";
 import ProfilePage from "@/pages/profile";
+import PrivacyPolicyPage from "@/pages/privacy-policy";
+import TermsOfServicePage from "@/pages/terms-of-service";
 
 import DetailsPage from "@/pages/details";
 
@@ -30,6 +32,8 @@ function Router() {
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/login" component={LoginPage} />
       <Route path="/profile" component={ProfilePage} />
+      <Route path="/privacy-policy" component={PrivacyPolicyPage} />
+      <Route path="/terms-of-service" component={TermsOfServicePage} />
       <Route component={NotFound} />
     </Switch>
   );
