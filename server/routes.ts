@@ -374,6 +374,23 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/bookings/:id/payment-status", async (req, res) => {
+    try {
+      const { paymentStatus } = req.body;
+      if (!paymentStatus) {
+        return res.status(400).json({ message: "Payment status is required" });
+      }
+      const booking = await storage.updatePaymentStatus(req.params.id, paymentStatus);
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+      res.json(booking);
+    } catch (error) {
+      console.error("Error updating payment status:", error);
+      res.status(500).json({ message: "Failed to update payment status" });
+    }
+  });
+
   // ============== REVIEWS ==============
   app.get("/api/reviews", async (_req, res) => {
     try {

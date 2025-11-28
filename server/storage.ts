@@ -38,6 +38,7 @@ export interface IStorage {
   getBookingById(id: string): Promise<any | null>;
   createBooking(booking: any): Promise<any>;
   updateBooking(id: string, booking: any): Promise<any | null>;
+  updatePaymentStatus(id: string, paymentStatus: string): Promise<any | null>;
   deleteBooking(id: string): Promise<boolean>;
 
   getReviews(): Promise<any[]>;
@@ -314,32 +315,49 @@ class MySQLStorage implements IStorage {
   }
 
   async getBookings(): Promise<any[]> {
-    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM bookings");
-    return rows as any[];
+    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM bookings ORDER BY created_at DESC");
+    return rows.map((row) => ({
+      ...row,
+      paymentStatus: row.payment_status || "Pending",
+    }));
   }
 
   async getBookingById(id: string): Promise<any | null> {
     const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM bookings WHERE id = ?", [id]);
-    return rows.length > 0 ? rows[0] : null;
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    return {
+      ...row,
+      paymentStatus: row.payment_status || "Pending",
+    };
   }
 
   async createBooking(booking: any): Promise<any> {
     const id = booking.id || `BKG-${this.generateId().toUpperCase().substring(0, 6)}`;
+    const paymentStatus = booking.paymentStatus || "Pending";
     await pool.query(
-      "INSERT INTO bookings (id, customer, item, date, status, amount) VALUES (?, ?, ?, ?, ?, ?)",
-      [id, booking.customer, booking.item, booking.date, booking.status || "Pending", booking.amount]
+      "INSERT INTO bookings (id, customer, item, date, status, amount, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [id, booking.customer, booking.item, booking.date, booking.status || "Pending", booking.amount, paymentStatus]
     );
-    return { id, ...booking };
+    return { id, ...booking, paymentStatus };
   }
 
   async updateBooking(id: string, booking: any): Promise<any | null> {
     const existing = await this.getBookingById(id);
     if (!existing) return null;
+    const paymentStatus = booking.paymentStatus || existing.paymentStatus || "Pending";
     await pool.query(
-      "UPDATE bookings SET customer = ?, item = ?, date = ?, status = ?, amount = ? WHERE id = ?",
-      [booking.customer, booking.item, booking.date, booking.status, booking.amount, id]
+      "UPDATE bookings SET customer = ?, item = ?, date = ?, status = ?, amount = ?, payment_status = ? WHERE id = ?",
+      [booking.customer || existing.customer, booking.item || existing.item, booking.date || existing.date, booking.status || existing.status, booking.amount || existing.amount, paymentStatus, id]
     );
-    return { id, ...booking };
+    return { ...existing, ...booking, paymentStatus };
+  }
+
+  async updatePaymentStatus(id: string, paymentStatus: string): Promise<any | null> {
+    const existing = await this.getBookingById(id);
+    if (!existing) return null;
+    await pool.query("UPDATE bookings SET payment_status = ? WHERE id = ?", [paymentStatus, id]);
+    return { ...existing, paymentStatus };
   }
 
   async deleteBooking(id: string): Promise<boolean> {

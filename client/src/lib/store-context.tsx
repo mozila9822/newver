@@ -66,6 +66,7 @@ export interface Booking {
   date: string;
   amount: string;
   status: "Confirmed" | "Pending" | "Cancelled";
+  paymentStatus: "Pending" | "Paid" | "Refunded" | "Failed";
 }
 
 export interface Review {
@@ -195,6 +196,7 @@ interface StoreContextType {
   bookings: Booking[];
   addBooking: (booking: Booking) => void;
   updateBooking: (id: string, booking: Partial<Booking>) => Promise<boolean>;
+  updatePaymentStatus: (id: string, paymentStatus: "Pending" | "Paid" | "Refunded" | "Failed") => Promise<boolean>;
   deleteBooking: (id: string) => Promise<boolean>;
   reviews: Review[];
   addReview: (review: Omit<Review, 'id' | 'createdAt'>) => Promise<Review | null>;
@@ -759,6 +761,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return false;
   };
 
+  const updatePaymentStatus = async (id: string, paymentStatus: "Pending" | "Paid" | "Refunded" | "Failed"): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/bookings/${id}/payment-status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentStatus })
+      });
+      if (res.ok) {
+        setBookings(prev => prev.map(b => b.id === id ? { ...b, paymentStatus } : b));
+        return true;
+      }
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+    }
+    return false;
+  };
+
   // ============== REVIEW CRUD ==============
   const addReview = async (review: Omit<Review, 'id' | 'createdAt'>): Promise<Review | null> => {
     try {
@@ -867,7 +886,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addOffer, updateOffer, deleteOffer,
       deleteItem, updateFooter, updateFooterLink,
       userProfile, updateUserProfile, paymentCards, addPaymentCard, deletePaymentCard, userTickets, allTickets, fetchUserTickets, fetchAllTickets, createTicket, replyToTicket, replyToTicketAsAdmin, updateTicketStatus,
-      bookings, addBooking, updateBooking, deleteBooking, reviews, addReview, updateReview, updateReviewStatus, deleteReview, getReviewsByItem, getApprovedReviewsByItem, getReviewCount,
+      bookings, addBooking, updateBooking, updatePaymentStatus, deleteBooking, reviews, addReview, updateReview, updateReviewStatus, deleteReview, getReviewsByItem, getApprovedReviewsByItem, getReviewCount,
       websiteSettings, updateWebsiteSettings, refetchData
     }}>
       {children}

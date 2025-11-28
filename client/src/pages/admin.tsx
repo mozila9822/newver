@@ -187,7 +187,7 @@ export default function AdminDashboard() {
     addOffer, updateOffer, deleteOffer,
     reviews, updateReviewStatus, deleteReview,
     websiteSettings, updateWebsiteSettings,
-    bookings, updateBooking, deleteBooking,
+    bookings, updateBooking, updatePaymentStatus, deleteBooking,
     allTickets, fetchAllTickets, replyToTicketAsAdmin, updateTicketStatus,
     refetchData
   } = useStore();
@@ -2673,6 +2673,7 @@ export default function AdminDashboard() {
                             <th className="px-6 py-3">Date</th>
                             <th className="px-6 py-3">Amount</th>
                             <th className="px-6 py-3">Status</th>
+                            <th className="px-6 py-3">Payment</th>
                             <th className="px-6 py-3">Actions</th>
                          </tr>
                          </thead>
@@ -2691,6 +2692,16 @@ export default function AdminDashboard() {
                                         'bg-red-100 text-red-700'
                                }`}>
                                   {booking.status}
+                               </span>
+                               </td>
+                               <td className="px-6 py-4">
+                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  booking.paymentStatus === 'Paid' ? 'bg-green-100 text-green-700' :
+                                     booking.paymentStatus === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                                     booking.paymentStatus === 'Refunded' ? 'bg-blue-100 text-blue-700' :
+                                        'bg-red-100 text-red-700'
+                               }`}>
+                                  {booking.paymentStatus || 'Pending'}
                                </span>
                                </td>
                                <td className="px-6 py-4">
@@ -2729,6 +2740,30 @@ export default function AdminDashboard() {
                                               }>
                                                 {booking.status}
                                               </Badge>
+                                            </div>
+                                            <div>
+                                              <p className="text-sm font-medium text-muted-foreground">Payment Status</p>
+                                              <Select 
+                                                value={booking.paymentStatus || 'Pending'} 
+                                                onValueChange={async (value: "Pending" | "Paid" | "Refunded" | "Failed") => {
+                                                  const success = await updatePaymentStatus(booking.id, value);
+                                                  if (success) {
+                                                    toast({ title: "Payment Updated", description: `Payment status changed to ${value}.` });
+                                                  } else {
+                                                    toast({ title: "Error", description: "Failed to update payment status.", variant: "destructive" });
+                                                  }
+                                                }}
+                                              >
+                                                <SelectTrigger className="w-32">
+                                                  <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  <SelectItem value="Pending">Pending</SelectItem>
+                                                  <SelectItem value="Paid">Paid</SelectItem>
+                                                  <SelectItem value="Refunded">Refunded</SelectItem>
+                                                  <SelectItem value="Failed">Failed</SelectItem>
+                                                </SelectContent>
+                                              </Select>
                                             </div>
                                           </div>
                                         </div>
