@@ -6,27 +6,62 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { MapPin, Star, Check, ArrowLeft, Share2, Heart, Clock, Shield, Globe, User } from "lucide-react";
+import { MapPin, Star, Check, ArrowLeft, Share2, Heart, Clock, Shield, Globe, User, Loader2 } from "lucide-react";
 import BookingModal from "@/components/booking-modal";
 import { useToast } from "@/hooks/use-toast";
 
 export default function DetailsPage() {
-  const [match, params] = useRoute("/details/:type/:id");
-  const { trips, hotels, cars, offers, getApprovedReviewsByItem, reviews } = useStore();
+  const [match, params] = useRoute("/details/:type/:slug");
+  const { getApprovedReviewsByItem, reviews } = useStore();
   const { toast } = useToast();
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [itemReviews, setItemReviews] = useState<Review[]>([]);
+  const [fetchedItem, setFetchedItem] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const type = params?.type;
-  const id = params?.id;
+  const slug = params?.slug;
 
-  // Find the item
-  let item: any;
-  if (type === "trip") item = trips.find(t => t.id === id);
-  else if (type === "hotel") item = hotels.find(h => h.id === id);
-  else if (type === "car") item = cars.find(c => c.id === id);
-  else if (type === "offer") item = offers.find(o => o.id === id);
+  // Fetch item from backend API by slug
+  useEffect(() => {
+    const fetchItemBySlug = async () => {
+      if (!type || !slug) {
+        setIsLoading(false);
+        setError("Invalid URL");
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const apiPath = type === "offer" ? "last-minute-offers" : `${type}s`;
+        const response = await fetch(`/api/${apiPath}/slug/${slug}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          setFetchedItem(data);
+          setError(null);
+        } else if (response.status === 404) {
+          setError("Item not found");
+          setFetchedItem(null);
+        } else {
+          setError("Failed to load item");
+          setFetchedItem(null);
+        }
+      } catch (err) {
+        setError("Failed to load item");
+        setFetchedItem(null);
+      }
+      setIsLoading(false);
+    };
+
+    fetchItemBySlug();
+  }, [type, slug]);
+
+  const item = fetchedItem;
 
   // Room Type Selection
   const [selectedRoomTypeId, setSelectedRoomTypeId] = useState<string>("");
@@ -37,16 +72,16 @@ export default function DetailsPage() {
     }
   }, [item, selectedRoomTypeId]);
 
-  // Fetch reviews for this item
+  // Fetch reviews for this item using its ID
   useEffect(() => {
     const fetchItemReviews = async () => {
-      if (type && id) {
-        const fetchedReviews = await getApprovedReviewsByItem(id, type);
+      if (type && item?.id) {
+        const fetchedReviews = await getApprovedReviewsByItem(item.id, type);
         setItemReviews(fetchedReviews);
       }
     };
     fetchItemReviews();
-  }, [type, id, reviews]); // Re-fetch when global reviews change
+  }, [type, item?.id, reviews]); // Re-fetch when global reviews change
 
   // Calculate the average rating from reviews
   const avgRating = itemReviews.length > 0 
@@ -56,11 +91,24 @@ export default function DetailsPage() {
   const selectedRoomType = item?.roomTypes?.find((r: any) => r.id === selectedRoomTypeId);
   const currentPrice = selectedRoomType ? selectedRoomType.price : item?.price;
 
-  if (!item) {
+  // Show loading state
+  if (isLoading) {
     return (
       <Layout>
         <div className="min-h-[60vh] flex flex-col items-center justify-center">
-          <h1 className="text-2xl font-bold mb-4">Item not found</h1>
+          <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Show error or not found state
+  if (!item || error) {
+    return (
+      <Layout>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center">
+          <h1 className="text-2xl font-bold mb-4">{error || "Item not found"}</h1>
           <Link href="/">
             <Button>Go Home</Button>
           </Link>

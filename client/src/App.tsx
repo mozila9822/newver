@@ -26,7 +26,7 @@ function Router() {
       <Route path="/hotels" component={HotelsPage} />
       <Route path="/cars" component={CarsPage} />
       <Route path="/last-minute" component={LastMinutePage} />
-      <Route path="/details/:type/:id" component={DetailsPage} />
+      <Route path="/details/:type/:slug" component={DetailsPage} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/login" component={LoginPage} />
       <Route path="/profile" component={ProfilePage} />

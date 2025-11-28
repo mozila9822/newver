@@ -212,39 +212,35 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <SheetContent className="w-[300px] sm:w-[400px]">
               <nav className="flex flex-col gap-6 mt-10">
                 {navLinks.map((link) => (
-                  <Link key={link.href} href={link.href}>
-                    <a className={cn(
+                  <Link 
+                    key={link.href} 
+                    href={link.href}
+                    className={cn(
                       "text-lg font-serif font-medium hover:text-secondary transition-colors",
                       location === link.href ? "text-secondary" : "text-foreground",
                       link.isSpecial && "text-destructive"
-                    )}>
-                      {link.label}
-                    </a>
+                    )}
+                  >
+                    {link.label}
                   </Link>
                 ))}
                 {user ? (
                   <>
                     {user.role === "admin" && (
-                      <Link href="/admin">
-                        <a className="text-lg font-serif font-medium hover:text-secondary transition-colors">
-                          Admin Dashboard
-                        </a>
+                      <Link href="/admin" className="text-lg font-serif font-medium hover:text-secondary transition-colors">
+                        Admin Dashboard
                       </Link>
                     )}
-                    <Link href="/profile">
-                      <a className="text-lg font-serif font-medium hover:text-secondary transition-colors">
-                        My Profile
-                      </a>
+                    <Link href="/profile" className="text-lg font-serif font-medium hover:text-secondary transition-colors">
+                      My Profile
                     </Link>
                     <button onClick={logout} className="text-lg font-serif font-medium text-left hover:text-destructive transition-colors">
                       Logout
                     </button>
                   </>
                 ) : (
-                  <Link href="/login">
-                    <a className="text-lg font-serif font-medium hover:text-secondary transition-colors">
-                      Sign In
-                    </a>
+                  <Link href="/login" className="text-lg font-serif font-medium hover:text-secondary transition-colors">
+                    Sign In
                   </Link>
                 )}
               </nav>
