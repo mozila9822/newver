@@ -2843,13 +2843,34 @@ export default function AdminDashboard() {
                                <td className="px-6 py-4">{booking.date}</td>
                                <td className="px-6 py-4 font-bold text-primary">{booking.amount}</td>
                                <td className="px-6 py-4">
-                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  booking.status === 'Confirmed' ? 'bg-green-100 text-green-700' :
-                                     booking.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                                        'bg-red-100 text-red-700'
-                               }`}>
-                                  {booking.status}
-                               </span>
+                                  {booking.status === 'Cancelled' ? (
+                                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                        Cancelled
+                                     </span>
+                                  ) : (
+                                     <Select 
+                                       value={booking.status} 
+                                       onValueChange={async (value: "Pending" | "Confirmed") => {
+                                         const success = await updateBooking(booking.id, { status: value });
+                                         if (success) {
+                                           toast({ title: "Status Updated", description: `Booking status changed to ${value}.` });
+                                         } else {
+                                           toast({ title: "Error", description: "Failed to update booking status.", variant: "destructive" });
+                                         }
+                                       }}
+                                     >
+                                       <SelectTrigger className={`w-28 h-7 text-xs font-medium ${
+                                          booking.status === 'Confirmed' ? 'bg-green-100 text-green-700 border-green-200' :
+                                             'bg-yellow-100 text-yellow-700 border-yellow-200'
+                                       }`}>
+                                         <SelectValue />
+                                       </SelectTrigger>
+                                       <SelectContent>
+                                         <SelectItem value="Pending">Pending</SelectItem>
+                                         <SelectItem value="Confirmed">Confirmed</SelectItem>
+                                       </SelectContent>
+                                     </Select>
+                                  )}
                                </td>
                                <td className="px-6 py-4">
                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -2891,12 +2912,29 @@ export default function AdminDashboard() {
                                             </div>
                                             <div>
                                               <p className="text-sm font-medium text-muted-foreground">Status</p>
-                                              <Badge variant={
-                                                booking.status === 'Confirmed' ? 'default' :
-                                                booking.status === 'Pending' ? 'secondary' : 'destructive'
-                                              }>
-                                                {booking.status}
-                                              </Badge>
+                                              {booking.status === 'Cancelled' ? (
+                                                <Badge variant="destructive">Cancelled</Badge>
+                                              ) : (
+                                                <Select 
+                                                  value={booking.status} 
+                                                  onValueChange={async (value: "Pending" | "Confirmed") => {
+                                                    const success = await updateBooking(booking.id, { status: value });
+                                                    if (success) {
+                                                      toast({ title: "Status Updated", description: `Booking status changed to ${value}.` });
+                                                    } else {
+                                                      toast({ title: "Error", description: "Failed to update booking status.", variant: "destructive" });
+                                                    }
+                                                  }}
+                                                >
+                                                  <SelectTrigger className="w-32">
+                                                    <SelectValue />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                    <SelectItem value="Pending">Pending</SelectItem>
+                                                    <SelectItem value="Confirmed">Confirmed</SelectItem>
+                                                  </SelectContent>
+                                                </Select>
+                                              )}
                                             </div>
                                             <div>
                                               <p className="text-sm font-medium text-muted-foreground">Payment Status</p>
