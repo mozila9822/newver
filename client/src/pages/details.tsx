@@ -9,10 +9,11 @@ import { Label } from "@/components/ui/label";
 import { MapPin, Star, Check, ArrowLeft, Share2, Heart, Clock, Shield, Globe, User, Loader2 } from "lucide-react";
 import BookingModal from "@/components/booking-modal";
 import { useToast } from "@/hooks/use-toast";
+import { formatPrice } from "@/lib/utils";
 
 export default function DetailsPage() {
   const [match, params] = useRoute("/details/:type/:slug");
-  const { getApprovedReviewsByItem, reviews } = useStore();
+  const { getApprovedReviewsByItem, reviews, detectedCurrency } = useStore();
   const { toast } = useToast();
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
@@ -295,8 +296,8 @@ export default function DetailsPage() {
                 <div className="mb-6">
                    <p className="text-sm text-muted-foreground mb-1">Starting from</p>
                    <div className="flex items-end gap-2">
-                      <span className="text-3xl font-bold text-primary">{currentPrice}</span>
-                      {item.originalPrice && <span className="text-lg text-muted-foreground line-through mb-1">{item.originalPrice}</span>}
+                      <span className="text-3xl font-bold text-primary">{formatPrice(currentPrice, detectedCurrency)}</span>
+                      {item.originalPrice && <span className="text-lg text-muted-foreground line-through mb-1">{formatPrice(item.originalPrice, detectedCurrency)}</span>}
                    </div>
                    {type === 'hotel' && <span className="text-sm text-muted-foreground">per night</span>}
                 </div>
@@ -314,7 +315,7 @@ export default function DetailsPage() {
                               {room.description && <span className="block text-xs text-muted-foreground font-normal mt-0.5">{room.description}</span>}
                             </Label>
                           </div>
-                          <span className="text-sm font-bold">{room.price}</span>
+                          <span className="text-sm font-bold">{formatPrice(room.price, detectedCurrency)}</span>
                         </div>
                       ))}
                     </RadioGroup>

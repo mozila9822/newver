@@ -3,7 +3,7 @@ import { MapPin, Star, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { useStore } from "@/lib/store-context";
-import { generateSlug } from "@/lib/utils";
+import { generateSlug, formatPrice } from "@/lib/utils";
 
 interface TripCardProps {
   id: string;
@@ -17,7 +17,7 @@ interface TripCardProps {
 }
 
 export default function TripCard({ id, image, title, location, price, rating: propRating, duration, type }: TripCardProps) {
-  const { getReviewStats } = useStore();
+  const { getReviewStats, detectedCurrency } = useStore();
   const stats = getReviewStats(id, type);
   const rating = stats.reviewCount > 0 ? stats.averageRating : (propRating || 0);
   const reviewCount = stats.reviewCount;
@@ -77,7 +77,7 @@ export default function TripCard({ id, image, title, location, price, rating: pr
         <div className="mt-auto pt-4 border-t border-border/50 flex items-center justify-between gap-2 relative z-30">
           <div>
             <span className="text-xs text-muted-foreground block">Starting from</span>
-            <span className="text-lg font-bold text-primary">{price}</span>
+            <span className="text-lg font-bold text-primary">{formatPrice(price, detectedCurrency)}</span>
           </div>
           <Link href={`/details/${type}/${slug}`}>
             <Button 

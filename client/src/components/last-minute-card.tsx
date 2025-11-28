@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { useStore } from "@/lib/store-context";
-import { generateSlug } from "@/lib/utils";
+import { generateSlug, formatPrice } from "@/lib/utils";
 
 interface LastMinuteCardProps {
   id: string;
@@ -19,7 +19,7 @@ interface LastMinuteCardProps {
 }
 
 export default function LastMinuteCard({ id, image, title, location, price, originalPrice, rating: propRating, endsIn, discount }: LastMinuteCardProps) {
-  const { getReviewStats } = useStore();
+  const { getReviewStats, detectedCurrency } = useStore();
   const stats = getReviewStats(id, 'offer');
   const rating = stats.reviewCount > 0 ? stats.averageRating : (propRating || 0);
   const reviewCount = stats.reviewCount;
@@ -81,8 +81,8 @@ export default function LastMinuteCard({ id, image, title, location, price, orig
 
         <div className="mt-auto pt-4 border-t border-border/50 flex items-center justify-between gap-2 relative z-30">
           <div>
-            <span className="text-xs text-muted-foreground block line-through">{originalPrice}</span>
-            <span className="text-2xl font-bold text-destructive">{price}</span>
+            <span className="text-xs text-muted-foreground block line-through">{formatPrice(originalPrice, detectedCurrency)}</span>
+            <span className="text-2xl font-bold text-destructive">{formatPrice(price, detectedCurrency)}</span>
           </div>
           <Link href={`/details/offer/${slug}`}>
             <Button 
